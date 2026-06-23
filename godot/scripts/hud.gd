@@ -1,16 +1,12 @@
 extends Control
-## In-run HUD — port of src/game/scenes/HudScene.ts.
-## Lives under a CanvasLayer so it stays fixed while the world camera shakes.
+## In-run HUD — restyled to match the menu/game-over: a compact accent-barred
+## stat panel, heart pips, a glowing fire-charge bar, a distance pill, and a
+## full-screen pause overlay. Lives under a CanvasLayer so it ignores shake.
 
 var snapshot := {
-	"score": 0,
-	"high_score": 0,
-	"health": 3,
-	"max_health": 3,
-	"mode_label": "",
-	"distance": 0.0,
-	"ability_ratio": 0.0,
-	"paused": false,
+	"score": 0, "high_score": 0, "health": 3, "max_health": 3,
+	"mode": "classic", "mode_label": "", "distance": 0.0,
+	"ability_ratio": 0.0, "paused": false,
 }
 
 var _font: Font
@@ -34,53 +30,84 @@ func update_hud(snap: Dictionary) -> void:
 
 func _draw() -> void:
 	var w := float(GameData.GAME_WIDTH)
+	var accent := Gfx.accent_of(snapshot.get("mode", "classic"))
+	var ability := clampf(snapshot.ability_ratio, 0.0, 1.0)
 
-	# Top-left info panel.
-	_panel(Rect2(18, 16, 386, 128))
-	_text("Score %d" % int(snapshot.score), Vector2(34, 52), 27, rgb(0xfff3d6))
-	_text("%s  |  Best %d" % [snapshot.mode_label, int(snapshot.high_score)], Vector2(36, 78), 13, rgb(0xcbd8f4))
-	_text("HP %d/%d" % [int(snapshot.health), int(snapshot.max_health)], Vector2(36, 108), 13, rgb(0xe8f0ff))
+	# --- Top-left stat panel ---
+	var panel := Rect2(16, 14, 320, 92)
+	draw_rect(panel, rgb(0x070f20, 0.62))
+	draw_rect(Rect2(panel.position, Vector2(4, panel.size.y)), accent)
+	draw_rect(panel, rgb(0xffffff, 0.10), false, 1.0)
 
-	var ability_ratio := clampf(snapshot.ability_ratio, 0.0, 1.0)
-	_text("FIRE READY" if ability_ratio >= 1.0 else "FIRE %d%%" % int(round(ability_ratio * 100)),
-		Vector2(204, 108), 13, rgb(0xe8f0ff))
+	_text("SCORE", Vector2(36, 38), 11, rgb(0x8aa0c8))
+	_bold("%d" % int(snapshot.score), Vector2(34, 76), 34, rgb(0xfff3d6), 1.2)
+	_text("%s  ·  BEST %d" % [str(snapshot.mode_label).to_upper(), int(snapshot.high_score)], Vector2(150, 38), 12, rgb(0xcbd8f4))
 
-	# Distance (top-right) and pause banner (top-center).
-	_text("%dm" % int(snapshot.distance), Vector2(w - 110, 44), 14, rgb(0xcbd8f4))
-	if snapshot.paused:
-		_panel(Rect2(w / 2.0 - 48, 22, 96, 30))
-		_text("Paused", Vector2(w / 2.0 - 28, 44), 15, rgb(0xfff3d6))
-
-	# Health pips.
+	# Heart pips.
 	var max_pips := int(max(1, snapshot.max_health))
 	for i in max_pips:
-		var x := 52 + i * 20
 		var on: bool = i < int(snapshot.health)
-		draw_circle(Vector2(x, 120), 6, rgb(0xff7f7f) if on else rgb(0x263247))
-		draw_arc(Vector2(x, 120), 6, 0, TAU, 16, rgb(0xffffff, 0.28 if on else 0.12), 1.0)
+		_heart(Vector2(156 + i * 20, 56), 6.0, rgb(0xff6d6d) if on else rgb(0x33425e))
 
 	# Fire charge bar.
-	draw_rect(Rect2(204, 116, 158, 9), Color(0, 0, 0, 0.32))
-	draw_rect(Rect2(204, 116, 158 * ability_ratio, 9), rgb(0xffd36b) if ability_ratio >= 1.0 else rgb(0x7dd3fc))
+	var bx := 150.0
+	var by := 78.0
+	var bw := 168.0
+	draw_rect(Rect2(bx, by, bw, 8), rgb(0x0a1424, 0.8))
+	var fill := rgb(0xffd36b) if ability >= 1.0 else accent
+	draw_rect(Rect2(bx, by, bw * ability, 8), fill)
+	if ability >= 1.0:
+		var glow := 0.4 + 0.3 * sin(_t * 6.0)
+		draw_rect(Rect2(bx - 2, by - 2, bw + 4, 12), rgb(0xffd36b, glow), false, 1.5)
+		_text("FIRE READY", Vector2(bx, by - 4), 10, rgb(0xffd36b))
+	else:
+		_text("FIRE %d%%" % int(round(ability * 100)), Vector2(bx, by - 4), 10, rgb(0x8aa0c8))
 
-	# On-screen fire cooldown ring (bottom-right) + pause button (top-right).
+	# --- Distance pill (top-right) ---
+	var dist := "%d m" % int(snapshot.distance)
+	var dw := _font.get_string_size(dist, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+	var pill := Rect2(w - 150 - dw, 18, dw + 28, 30)
+	draw_rect(pill, rgb(0x070f20, 0.55))
+	draw_rect(pill, rgb(0xffffff, 0.10), false, 1.0)
+	draw_circle(pill.position + Vector2(14, 15), 3, accent)
+	_text(dist, pill.position + Vector2(24, 20), 16, rgb(0xe8f0ff))
+
+	# --- On-screen fire ring (bottom-right) + pause button (top-right) ---
 	var fire_c := Vector2(w - 82, float(GameData.GAME_HEIGHT) - 76)
-	draw_circle(fire_c, 44, Color(5 / 255.0, 8 / 255.0, 18 / 255.0, 0.58))
-	draw_arc(fire_c, 44, 0, TAU, 32, rgb(0xffffff, 0.16), 3.0)
-	draw_arc(fire_c, 37, -PI / 2.0, -PI / 2.0 + TAU * ability_ratio, 32,
-		rgb(0xffd36b) if ability_ratio >= 1.0 else rgb(0x7dd3fc), 6.0)
-	draw_circle(fire_c, 29, rgb(0xffd36b) if ability_ratio >= 1.0 else rgb(0x263247))
-	_text("F", fire_c + Vector2(-5, 8), 25, rgb(0x142033) if ability_ratio >= 1.0 else rgb(0xdbe7ff))
+	draw_circle(fire_c, 44, rgb(0x070f20, 0.55))
+	draw_arc(fire_c, 44, 0, TAU, 32, rgb(0xffffff, 0.14), 3.0)
+	draw_arc(fire_c, 37, -PI / 2.0, -PI / 2.0 + TAU * ability, 40, rgb(0xffd36b) if ability >= 1.0 else accent, 6.0)
+	draw_circle(fire_c, 29, rgb(0xffd36b) if ability >= 1.0 else rgb(0x1b2c45))
+	_center_at("F", fire_c.x, fire_c.y + 8, 24, rgb(0x0a1420) if ability >= 1.0 else rgb(0xdbe7ff))
 
-	var pause_c := Vector2(w - 48, 46)
-	draw_circle(pause_c, 28, Color(5 / 255.0, 8 / 255.0, 18 / 255.0, 0.58))
-	draw_arc(pause_c, 28, 0, TAU, 24, rgb(0xffffff, 0.16), 2.0)
-	_text("II", pause_c + Vector2(-6, 6), 16, rgb(0xe8f0ff))
+	var pause_c := Vector2(w - 48, 64)
+	draw_circle(pause_c, 22, rgb(0x070f20, 0.55))
+	draw_arc(pause_c, 22, 0, TAU, 24, rgb(0xffffff, 0.14), 2.0)
+	draw_rect(Rect2(pause_c.x - 6, pause_c.y - 7, 4, 14), rgb(0xe8f0ff))
+	draw_rect(Rect2(pause_c.x + 2, pause_c.y - 7, 4, 14), rgb(0xe8f0ff))
+
+	# --- Pause overlay ---
+	if snapshot.paused:
+		draw_rect(Rect2(0, 0, w, GameData.GAME_HEIGHT), rgb(0x05070f, 0.55))
+		_center_at("PAUSED", w / 2.0, GameData.GAME_HEIGHT / 2.0, 52, rgb(0xfff3d6))
+		_center_at("Press P or Esc to resume", w / 2.0, GameData.GAME_HEIGHT / 2.0 + 38, 15, rgb(0xcbd8f4))
 
 
-func _panel(r: Rect2) -> void:
-	draw_rect(r, Color(5 / 255.0, 8 / 255.0, 18 / 255.0, 0.62))
-	draw_rect(r, rgb(0xffffff, 0.16), false, 1.0)
+func _heart(c: Vector2, s: float, col: Color) -> void:
+	draw_circle(Vector2(c.x - s * 0.45, c.y - s * 0.25), s * 0.55, col)
+	draw_circle(Vector2(c.x + s * 0.45, c.y - s * 0.25), s * 0.55, col)
+	Gfx.poly(self, [Vector2(c.x - s * 0.9, c.y - s * 0.05), Vector2(c.x + s * 0.9, c.y - s * 0.05), Vector2(c.x, c.y + s)], col)
+
+
+func _bold(s: String, pos: Vector2, size: int, color: Color, spread: float) -> void:
+	for off in [Vector2(spread, 0), Vector2(-spread, 0), Vector2(0, spread), Vector2(0, -spread)]:
+		draw_string(_font, pos + off, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
+	draw_string(_font, pos, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
+
+
+func _center_at(s: String, cx: float, y: float, size: int, color: Color) -> void:
+	var width := _font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	draw_string(_font, Vector2(cx - width / 2.0, y), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
 
 
 func _text(s: String, pos: Vector2, size: int, color: Color) -> void:
@@ -88,4 +115,4 @@ func _text(s: String, pos: Vector2, size: int, color: Color) -> void:
 
 
 func rgb(hex: int, alpha := 1.0) -> Color:
-	return Color(((hex >> 16) & 0xff) / 255.0, ((hex >> 8) & 0xff) / 255.0, (hex & 0xff) / 255.0, alpha)
+	return Gfx.rgb(hex, alpha)

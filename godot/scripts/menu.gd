@@ -312,49 +312,10 @@ func _draw_hero() -> void:
 		var col := rgb(0xffd24a) if em.hot else rgb(0xff7a1e)
 		draw_circle(em.pos, 3.5 * k, Color(col.r, col.g, col.b, 0.8 * k * e))
 
-	var glow := 2.0
-	draw_set_transform(pos, 0.0, Vector2(glow, glow))
-	draw_circle(Vector2.ZERO, 46, rgb(0xff8b49, 0.05 * e))
-	draw_set_transform(pos, 0.0, Vector2(glow, glow))
-
-	var a := e
 	var wing_ang := sin(_t * 5.0) * 0.32 - 0.1
 	var tail_wag := sin(_t * 3.0) * 5.0
-	var c_body := rgb(0xe2502f, a)
-	var c_top := rgb(0xff7a4d, 0.85 * a)
-	var c_belly := rgb(0xffd9a0, 0.95 * a)
-	var c_horn := rgb(0xffe6a8, a)
-
-	_draw_wing(Vector2(-2, -8), wing_ang * 0.85 - 0.15, rgb(0x9c3f18, 0.8 * a))
-	_draw_poly([Vector2(-22, -9), Vector2(-44, -6 + tail_wag * 0.5), Vector2(-64, -13 + tail_wag), Vector2(-54, -2 + tail_wag), Vector2(-68, 5 + tail_wag), Vector2(-48, 8 + tail_wag * 0.5), Vector2(-22, 11)], c_body)
-	_draw_poly([Vector2(-58, -2 + tail_wag), Vector2(-74, 1 + tail_wag), Vector2(-58, 7 + tail_wag), Vector2(-64, 2 + tail_wag)], c_horn)
-	for i in 4:
-		var sx := -18.0 + i * 11.0
-		_draw_poly([Vector2(sx, -13), Vector2(sx + 5, -22), Vector2(sx + 9, -12)], c_horn)
-	_draw_ellipse(Vector2(-2, 0), 30, 18, c_body)
-	_draw_ellipse(Vector2(-4, -4), 24, 11, c_top)
-	_draw_ellipse(Vector2(-4, 8), 21, 9, c_belly)
-	_draw_poly([Vector2(12, -10), Vector2(34, -16), Vector2(42, -3), Vector2(20, 3)], c_body)
-	_draw_ellipse(Vector2(43, -9), 14, 11, c_body)
-	_draw_ellipse(Vector2(43, -13), 11, 6, c_top)
-	_draw_poly([Vector2(50, -13), Vector2(67, -7), Vector2(65, -1), Vector2(50, -2)], c_body)
-	_draw_poly([Vector2(40, -18), Vector2(28, -32), Vector2(37, -18)], c_horn)
-	_draw_poly([Vector2(46, -17), Vector2(38, -30), Vector2(50, -16)], c_horn)
-	draw_circle(Vector2(49, -11), 3.8, rgb(0xfff6e6, a))
-	draw_circle(Vector2(50, -11), 1.9, rgb(0x101826, a))
-
-	# Fire breath burst.
-	if _fire_age >= 0.0:
-		var fk: float = sin(clampf(_fire_age / 0.7, 0.0, 1.0) * PI)
-		var len := 70.0 * fk
-		_draw_poly([Vector2(64, -8), Vector2(64 + len, -2 - 8 * fk), Vector2(64 + len + 14, -2), Vector2(64 + len, -2 + 8 * fk), Vector2(64, 4)], rgb(0xff7a1e, 0.8 * fk * a))
-		_draw_poly([Vector2(64, -4), Vector2(64 + len * 0.7, -2), Vector2(64, 2)], rgb(0xffe070, 0.9 * fk * a))
-	else:
-		var fl := 1.0 + sin(_t * 9.0) * 0.28
-		_draw_poly([Vector2(65, -8), Vector2(66 + 10 * fl, -3), Vector2(65, 3), Vector2(70, -3)], rgb(0xff7a1e, 0.85 * a))
-
-	_draw_wing(Vector2(2, -8), wing_ang, rgb(0xffb454, 0.96 * a))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var fire := clampf(_fire_age / 0.7, 0.0, 1.0) if _fire_age >= 0.0 else -1.0
+	Gfx.dragon(self, pos, 2.0, 0.0, e, wing_ang, tail_wag, _t, fire)
 
 
 # --- Icons / glyphs ----------------------------------------------------------
@@ -399,29 +360,8 @@ func _bold(s: String, pos: Vector2, size: int, color: Color, spread: float) -> v
 	draw_string(_font, pos, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
 
 
-func _draw_wing(pivot: Vector2, ang: float, fill: Color) -> void:
-	var local := [Vector2(0, 2), Vector2(13, -28), Vector2(5, -25), Vector2(2, -45), Vector2(-7, -29), Vector2(-17, -39), Vector2(-13, -23), Vector2(-24, -21), Vector2(-9, -6)]
-	var poly := PackedVector2Array()
-	for p in local:
-		poly.append(pivot + (p as Vector2).rotated(ang))
-	draw_colored_polygon(poly, fill)
-	for tip in [Vector2(13, -28), Vector2(2, -45), Vector2(-17, -39), Vector2(-24, -21)]:
-		draw_line(pivot, pivot + (tip as Vector2).rotated(ang), Color(fill, 0.6), 1.4)
-
-
 func _draw_poly(pts: Array, color: Color) -> void:
-	var poly := PackedVector2Array()
-	for p in pts:
-		poly.append(p)
-	draw_colored_polygon(poly, color)
-
-
-func _draw_ellipse(center: Vector2, rx: float, ry: float, color: Color) -> void:
-	var pts := PackedVector2Array()
-	for i in 24:
-		var t := TAU * i / 24.0
-		pts.append(center + Vector2(cos(t) * rx, sin(t) * ry))
-	draw_colored_polygon(pts, color)
+	Gfx.poly(self, pts, color)
 
 
 func _text(s: String, pos: Vector2, size: int, color: Color, wrap_w := -1.0) -> void:
@@ -429,4 +369,4 @@ func _text(s: String, pos: Vector2, size: int, color: Color, wrap_w := -1.0) -> 
 
 
 func rgb(hex: int, alpha := 1.0) -> Color:
-	return Color(((hex >> 16) & 0xff) / 255.0, ((hex >> 8) & 0xff) / 255.0, (hex & 0xff) / 255.0, alpha)
+	return Gfx.rgb(hex, alpha)
