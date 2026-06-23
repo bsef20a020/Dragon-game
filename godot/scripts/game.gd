@@ -86,15 +86,16 @@ func _seed_clouds() -> void:
 
 
 func _process(delta: float) -> void:
+	# While paused the whole world freezes — no physics, no effects, no clock.
+	if paused_run and not game_ended:
+		emit_hud()
+		queue_redraw()
+		return
+
 	var delta_ms := delta * 1000.0
 	now_ms += delta_ms
 	_update_effects(delta, delta_ms)
 	if game_ended:
-		queue_redraw()
-		return
-
-	if paused_run:
-		emit_hud()
 		queue_redraw()
 		return
 
@@ -151,19 +152,42 @@ func _input(event: InputEvent) -> void:
 		if mb.button_index == MOUSE_BUTTON_RIGHT:
 			cast_fire()
 		elif mb.button_index == MOUSE_BUTTON_LEFT:
-			# On-screen buttons take priority; the HUD owns their geometry.
-			if hud.hits_fire(mb.position):
+			if paused_run:
+				# Pause-menu buttons (HUD owns their geometry).
+				if hud.hits_resume(mb.position):
+					toggle_pause()
+				elif hud.hits_restart(mb.position):
+					restart()
+				elif hud.hits_menu(mb.position):
+					quit_to_menu()
+			elif hud.hits_fire(mb.position):
 				cast_fire()
 			elif hud.hits_pause(mb.position):
 				toggle_pause()
 			else:
 				flap()
+	elif event.is_action_pressed("pause_toggle"):
+		toggle_pause()
+	elif paused_run and event is InputEventKey and event.pressed:
+		if (event as InputEventKey).keycode == KEY_R:
+			restart()
+		elif (event as InputEventKey).keycode == KEY_M:
+			quit_to_menu()
 	elif event.is_action_pressed("flap"):
 		flap()
 	elif event.is_action_pressed("fire"):
 		cast_fire()
-	elif event.is_action_pressed("pause_toggle"):
-		toggle_pause()
+
+
+func restart() -> void:
+	GameData.selected_mode_key = mode.key
+	Audio.play("pickup", -8.0)
+	get_tree().change_scene_to_file("res://scenes/Game.tscn")
+
+
+func quit_to_menu() -> void:
+	Audio.play("flap", -12.0)
+	get_tree().change_scene_to_file("res://scenes/Menu.tscn")
 
 
 func flap() -> void:

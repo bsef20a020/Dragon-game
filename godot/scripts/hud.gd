@@ -19,6 +19,11 @@ const FIRE_RADIUS := 44.0
 const PAUSE_CENTER := Vector2(960 - 48, 64)
 const PAUSE_RADIUS := 24.0
 
+# Pause-menu buttons (only interactive while paused).
+const RESUME_RECT := Rect2(370, 252, 220, 42)
+const RESTART_RECT := Rect2(370, 300, 220, 42)
+const MENU_RECT := Rect2(370, 348, 220, 42)
+
 
 func _ready() -> void:
 	_font = ThemeDB.fallback_font
@@ -31,6 +36,18 @@ func hits_fire(p: Vector2) -> bool:
 
 func hits_pause(p: Vector2) -> bool:
 	return p.distance_to(PAUSE_CENTER) <= PAUSE_RADIUS
+
+
+func hits_resume(p: Vector2) -> bool:
+	return snapshot.paused and RESUME_RECT.has_point(p)
+
+
+func hits_restart(p: Vector2) -> bool:
+	return snapshot.paused and RESTART_RECT.has_point(p)
+
+
+func hits_menu(p: Vector2) -> bool:
+	return snapshot.paused and MENU_RECT.has_point(p)
 
 
 func _process(delta: float) -> void:
@@ -101,11 +118,33 @@ func _draw() -> void:
 	draw_rect(Rect2(pause_c.x - 6, pause_c.y - 7, 4, 14), rgb(0xe8f0ff))
 	draw_rect(Rect2(pause_c.x + 2, pause_c.y - 7, 4, 14), rgb(0xe8f0ff))
 
-	# --- Pause overlay ---
+	# --- Pause overlay / menu ---
 	if snapshot.paused:
-		draw_rect(Rect2(0, 0, w, GameData.GAME_HEIGHT), rgb(0x05070f, 0.55))
-		_center_at("PAUSED", w / 2.0, GameData.GAME_HEIGHT / 2.0, 52, rgb(0xfff3d6))
-		_center_at("Press P or Esc to resume", w / 2.0, GameData.GAME_HEIGHT / 2.0 + 38, 15, rgb(0xcbd8f4))
+		draw_rect(Rect2(0, 0, w, GameData.GAME_HEIGHT), rgb(0x05070f, 0.62))
+		var menu_panel := Rect2(w / 2.0 - 150, 150, 300, 268)
+		draw_rect(menu_panel, rgb(0x0b1426, 0.94))
+		draw_rect(menu_panel, rgb(0xffffff, 0.10), false, 1.0)
+		draw_rect(Rect2(menu_panel.position, Vector2(menu_panel.size.x, 4)), accent)
+		_center_at("PAUSED", w / 2.0, 212, 40, rgb(0xfff3d6))
+		var mp := get_global_mouse_position()
+		_pause_btn(RESUME_RECT, "▶  Resume", accent, true, mp)
+		_pause_btn(RESTART_RECT, "↻  Restart", Color.BLACK, false, mp)
+		_pause_btn(MENU_RECT, "☰  Quit to Menu", Color.BLACK, false, mp)
+		_center_at("P / Esc  resume     ·     R  restart     ·     M  menu", w / 2.0, 404, 12, rgb(0x8aa0c8))
+
+
+func _pause_btn(r: Rect2, label: String, accent: Color, primary: bool, mouse: Vector2) -> void:
+	var hov := r.has_point(mouse)
+	var text_col: Color
+	if primary:
+		draw_rect(r, accent if hov else Color(accent.r * 0.9, accent.g * 0.9, accent.b * 0.9, 1.0))
+		text_col = rgb(0x0a1420)
+	else:
+		draw_rect(r, rgb(0x1d3050) if hov else rgb(0x16263f))
+		draw_rect(r, rgb(0xffffff, 0.4 if hov else 0.14), false, 1.5)
+		text_col = rgb(0xe8f0ff)
+	var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
+	draw_string(_font, r.position + Vector2((r.size.x - tw) / 2.0, 28), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, text_col)
 
 
 func _heart(c: Vector2, s: float, col: Color) -> void:

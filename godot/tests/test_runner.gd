@@ -63,19 +63,21 @@ func _test_modes() -> void:
 
 
 func _test_save() -> void:
-	# Use a throwaway key so real high scores are never clobbered.
+	# Use a throwaway key so real high scores are never clobbered. The save file
+	# persists between runs, so assert relative to the current value.
 	var k := "__selftest__"
-	var start := SaveData.get_high_score(k)
-	ok(start >= 0, "get_high_score never negative")
-	SaveData.set_high_score(k, 100)
-	eq(SaveData.get_high_score(k), 100, "set_high_score stores a new best")
-	SaveData.set_high_score(k, 40)
-	eq(SaveData.get_high_score(k), 100, "set_high_score is monotonic (lower ignored)")
-	SaveData.set_high_score(k, 250)
-	eq(SaveData.get_high_score(k), 250, "set_high_score raises to a higher best")
+	var base := SaveData.get_high_score(k)
+	ok(base >= 0, "get_high_score never negative")
+	SaveData.set_high_score(k, base + 100)
+	eq(SaveData.get_high_score(k), base + 100, "set_high_score stores a new best")
+	SaveData.set_high_score(k, base + 40)
+	eq(SaveData.get_high_score(k), base + 100, "set_high_score is monotonic (lower ignored)")
+	SaveData.set_high_score(k, base + 250)
+	eq(SaveData.get_high_score(k), base + 250, "set_high_score raises to a higher best")
 	# Float scores are floored.
-	SaveData.set_high_score(k, 300.9)
-	eq(SaveData.get_high_score(k), 300, "high score is floored to int")
+	var cur := SaveData.get_high_score(k)
+	SaveData.set_high_score(k, cur + 10.9)
+	eq(SaveData.get_high_score(k), cur + 10, "high score is floored to int")
 
 
 func _test_scoring() -> void:
@@ -145,4 +147,19 @@ func _test_hud_hit_areas() -> void:
 	# A click just inside the pause radius hits; just outside misses.
 	ok(hud.hits_pause(hud.PAUSE_CENTER + Vector2(hud.PAUSE_RADIUS - 1, 0)), "pause hit just inside radius")
 	ok(not hud.hits_pause(hud.PAUSE_CENTER + Vector2(hud.PAUSE_RADIUS + 2, 0)), "pause miss just outside radius")
+
+	# Pause-menu buttons are only live while paused.
+	hud.snapshot = {"paused": false}
+	ok(not hud.hits_resume(hud.RESUME_RECT.get_center()), "resume inert when not paused")
+	hud.snapshot = {"paused": true}
+	ok(hud.hits_resume(hud.RESUME_RECT.get_center()), "resume hit while paused")
+	ok(hud.hits_restart(hud.RESTART_RECT.get_center()), "restart hit while paused")
+	ok(hud.hits_menu(hud.MENU_RECT.get_center()), "menu hit while paused")
+	ok(not hud.hits_resume(hud.MENU_RECT.get_center()), "pause-menu buttons do not overlap")
 	hud.free()
+
+	# The game exposes the pause-menu actions the HUD routes to.
+	var g = load("res://scripts/game.gd").new()
+	ok(g.has_method("restart"), "game has restart()")
+	ok(g.has_method("quit_to_menu"), "game has quit_to_menu()")
+	g.free()
