@@ -151,10 +151,10 @@ func _input(event: InputEvent) -> void:
 		if mb.button_index == MOUSE_BUTTON_RIGHT:
 			cast_fire()
 		elif mb.button_index == MOUSE_BUTTON_LEFT:
-			# On-screen buttons (bottom-right fire / top-right pause) take priority.
-			if mb.position.distance_to(Vector2(W - 82, H - 76)) <= 44:
+			# On-screen buttons take priority; the HUD owns their geometry.
+			if hud.hits_fire(mb.position):
 				cast_fire()
-			elif mb.position.distance_to(Vector2(W - 48, 46)) <= 28:
+			elif hud.hits_pause(mb.position):
 				toggle_pause()
 			else:
 				flap()

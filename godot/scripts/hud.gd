@@ -12,10 +12,25 @@ var snapshot := {
 var _font: Font
 var _t := 0.0
 
+# On-screen button geometry — single source of truth for both drawing and
+# hit-testing (game.gd queries hits_fire()/hits_pause() instead of hard-coding).
+const FIRE_CENTER := Vector2(960 - 82, 540 - 76)  # 960x540 viewport
+const FIRE_RADIUS := 44.0
+const PAUSE_CENTER := Vector2(960 - 48, 64)
+const PAUSE_RADIUS := 24.0
+
 
 func _ready() -> void:
 	_font = ThemeDB.fallback_font
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+
+
+func hits_fire(p: Vector2) -> bool:
+	return p.distance_to(FIRE_CENTER) <= FIRE_RADIUS
+
+
+func hits_pause(p: Vector2) -> bool:
+	return p.distance_to(PAUSE_CENTER) <= PAUSE_RADIUS
 
 
 func _process(delta: float) -> void:
@@ -73,16 +88,16 @@ func _draw() -> void:
 	_text(dist, pill.position + Vector2(24, 20), 16, rgb(0xe8f0ff))
 
 	# --- On-screen fire ring (bottom-right) + pause button (top-right) ---
-	var fire_c := Vector2(w - 82, float(GameData.GAME_HEIGHT) - 76)
-	draw_circle(fire_c, 44, rgb(0x070f20, 0.55))
-	draw_arc(fire_c, 44, 0, TAU, 32, rgb(0xffffff, 0.14), 3.0)
+	var fire_c := FIRE_CENTER
+	draw_circle(fire_c, FIRE_RADIUS, rgb(0x070f20, 0.55))
+	draw_arc(fire_c, FIRE_RADIUS, 0, TAU, 32, rgb(0xffffff, 0.14), 3.0)
 	draw_arc(fire_c, 37, -PI / 2.0, -PI / 2.0 + TAU * ability, 40, rgb(0xffd36b) if ability >= 1.0 else accent, 6.0)
 	draw_circle(fire_c, 29, rgb(0xffd36b) if ability >= 1.0 else rgb(0x1b2c45))
 	_center_at("F", fire_c.x, fire_c.y + 8, 24, rgb(0x0a1420) if ability >= 1.0 else rgb(0xdbe7ff))
 
-	var pause_c := Vector2(w - 48, 64)
-	draw_circle(pause_c, 22, rgb(0x070f20, 0.55))
-	draw_arc(pause_c, 22, 0, TAU, 24, rgb(0xffffff, 0.14), 2.0)
+	var pause_c := PAUSE_CENTER
+	draw_circle(pause_c, PAUSE_RADIUS, rgb(0x070f20, 0.55))
+	draw_arc(pause_c, PAUSE_RADIUS, 0, TAU, 24, rgb(0xffffff, 0.14), 2.0)
 	draw_rect(Rect2(pause_c.x - 6, pause_c.y - 7, 4, 14), rgb(0xe8f0ff))
 	draw_rect(Rect2(pause_c.x + 2, pause_c.y - 7, 4, 14), rgb(0xe8f0ff))
 
