@@ -10,3 +10,4 @@ pnpm-debug.log*
 godot/.godot/
 godot/android/
 dist-godot/
+dist-web/

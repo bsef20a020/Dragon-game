@@ -39,13 +39,19 @@ export class GameScene extends Phaser.Scene {
   private shieldMs = 0;
   private pausedRun = false;
   private gameEnded = false;
+  private hitStopMs = 0;
+  private trailTimer = 0;
 
   private dragon?: Phaser.GameObjects.Container;
   private wing?: Phaser.GameObjects.Triangle;
+  private body?: Phaser.GameObjects.Ellipse;
   private pillars: PillarPair[] = [];
   private pickups: PickupItem[] = [];
   private stars: Star[] = [];
   private horizon?: Phaser.GameObjects.TileSprite;
+  private mountainFar?: Phaser.GameObjects.TileSprite;
+  private cloudFar?: Phaser.GameObjects.TileSprite;
+  private vignette?: Phaser.GameObjects.Graphics;
   private pauseOverlay?: Phaser.GameObjects.Container;
   private touchControlGraphics?: Phaser.GameObjects.Graphics;
   private fireButtonLabel?: Phaser.GameObjects.Text;
@@ -79,6 +85,8 @@ export class GameScene extends Phaser.Scene {
     this.shieldMs = 0;
     this.pausedRun = false;
     this.gameEnded = false;
+    this.hitStopMs = 0;
+    this.trailTimer = 0;
     this.pillars = [];
     this.pickups = [];
     this.stars = [];
@@ -104,6 +112,14 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    // Hit-stop: briefly freeze the action on impact for punchy feedback.
+    if (this.hitStopMs > 0) {
+      this.hitStopMs = Math.max(0, this.hitStopMs - delta);
+      this.drawVignette();
+      this.emitHud();
+      return;
+    }
+
     const seconds = delta / 1000;
     this.timeAlive += seconds;
     this.spawnTimer += delta;
@@ -124,11 +140,18 @@ export class GameScene extends Phaser.Scene {
     this.dragon.angle = Phaser.Math.Clamp(this.velocity * 110, -28, 58);
     this.dragon.alpha = this.invulnerableMs > 0 && Math.floor(this.time.now / 80) % 2 === 0 ? 0.48 : 1;
 
+    this.trailTimer += delta;
+    if (this.trailTimer >= 45) {
+      this.trailTimer = 0;
+      this.spawnTrailGhost();
+    }
+
     this.animateWorld(seconds);
     this.updateObstacles(seconds, delta);
     this.updatePickups(seconds);
     this.updateTouchControls();
     this.updateRunHint();
+    this.drawVignette();
     this.checkWorldBounds();
     this.emitHud();
   }
@@ -142,15 +165,57 @@ export class GameScene extends Phaser.Scene {
     g.fillStyle(0x7dd3fc, 0.08);
     g.fillCircle(860, 120, 280);
 
+    // Parallax layer 1 (slowest): drifting cloud band high in the sky.
+    this.cloudFar = this.add.tileSprite(GAME_WIDTH / 2, 132, GAME_WIDTH, 150, this.createCloudTexture())
+      .setDepth(1)
+      .setAlpha(0.65);
+
     for (let i = 0; i < 84; i++) {
       const dot = this.add.circle((i * 67) % GAME_WIDTH, (i * 43) % (GAME_HEIGHT - 60), 1 + (i % 3) * 0.35, 0xffffff, 0.12 + (i % 4) * 0.04)
         .setDepth(DEPTHS.background);
       this.stars.push({ dot, speed: 12 + (i % 6) * 6 });
     }
 
+    // Parallax layer 2 (medium): distant darker mountains.
+    this.mountainFar = this.add.tileSprite(GAME_WIDTH / 2, GAME_HEIGHT - 72, GAME_WIDTH, 120, this.createFarMountainTexture())
+      .setDepth(2);
+
+    // Parallax layer 3 (fastest): near mountains.
     const mountainTexture = this.createMountainTexture();
     this.horizon = this.add.tileSprite(GAME_WIDTH / 2, GAME_HEIGHT - 54, GAME_WIDTH, 108, mountainTexture)
-      .setDepth(DEPTHS.background);
+      .setDepth(5);
+
+    this.vignette = this.add.graphics().setDepth(DEPTHS.overlay);
+  }
+
+  private createCloudTexture(): string {
+    const key = 'cloud-band';
+    if (this.textures.exists(key)) return key;
+
+    const g = this.add.graphics();
+    g.fillStyle(0xaecbff, 0.12);
+    const blobs: Array<[number, number, number]> = [
+      [42, 92, 38], [96, 74, 50], [158, 96, 42], [220, 78, 52], [284, 96, 40]
+    ];
+    for (const [x, y, r] of blobs) g.fillCircle(x, y, r);
+    g.generateTexture(key, 320, 150);
+    g.destroy();
+    return key;
+  }
+
+  private createFarMountainTexture(): string {
+    const key = 'mountain-far';
+    if (this.textures.exists(key)) return key;
+
+    const g = this.add.graphics();
+    g.fillStyle(0x081120, 0.92);
+    g.fillTriangle(0, 120, 86, 52, 196, 120);
+    g.fillTriangle(150, 120, 236, 40, 320, 120);
+    g.fillStyle(0x0c192e, 0.92);
+    g.fillTriangle(58, 120, 150, 66, 248, 120);
+    g.generateTexture(key, 320, 120);
+    g.destroy();
+    return key;
   }
 
   private createMountainTexture(): string {
@@ -183,6 +248,7 @@ export class GameScene extends Phaser.Scene {
     dragon.add([wing, tail, body, belly, head, eye, hornA, hornB]);
     this.dragon = dragon;
     this.wing = wing;
+    this.body = body;
 
     this.tweens.add({
       targets: wing,
@@ -289,6 +355,15 @@ export class GameScene extends Phaser.Scene {
       duration: 90,
       ease: 'Sine.out'
     });
+    // Squash & stretch: the body pinches vertically then springs back.
+    this.body?.setScale(0.84, 1.22);
+    this.tweens.add({
+      targets: this.body,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 170,
+      ease: 'Back.out'
+    });
     this.spawnBurst(this.dragon?.x ?? 176, (this.dragon?.y ?? GAME_HEIGHT / 2) + 18, 0x7dd3fc, 5);
   }
 
@@ -306,6 +381,8 @@ export class GameScene extends Phaser.Scene {
         star.dot.y = Phaser.Math.Between(6, GAME_HEIGHT - 82);
       }
     }
+    if (this.cloudFar) this.cloudFar.tilePositionX += this.speed * seconds * 0.045;
+    if (this.mountainFar) this.mountainFar.tilePositionX += this.speed * seconds * 0.10;
     if (this.horizon) this.horizon.tilePositionX += this.speed * seconds * 0.18;
   }
 
@@ -459,6 +536,16 @@ export class GameScene extends Phaser.Scene {
     glow.setBlendMode(Phaser.BlendModes.ADD);
     core.setBlendMode(Phaser.BlendModes.ADD);
     this.cameras.main.shake(90, 0.003);
+    // Quick zoom-punch for recoil.
+    this.tweens.add({
+      targets: this.cameras.main,
+      zoom: 1.028,
+      duration: 70,
+      yoyo: true,
+      ease: 'Sine.inOut'
+    });
+    // Muzzle flash at the dragon's mouth.
+    this.spawnBurst(this.dragon.x - 36, this.dragon.y - 6, 0xfff2b8, 8);
 
     let cleared = 0;
     const beamRect = new Phaser.Geom.Rectangle(this.dragon.x + 20, this.dragon.y - 34, 440, 68);
@@ -468,12 +555,14 @@ export class GameScene extends Phaser.Scene {
       if (inBeam) {
         cleared += 1;
         this.spawnBurst(pillar.x, this.dragon.y, 0xffc968, 14);
+        this.shatterPillar(pillar);
         this.destroyPillar(pillar);
       } else {
         live.push(pillar);
       }
     }
     this.pillars = live;
+    if (cleared > 0) this.hitStopMs = Math.max(this.hitStopMs, 55);
     if (cleared > 0) {
       this.addScore(cleared * 15);
       this.showFloatText(`+${cleared * 15}`, this.dragon.x + 120, this.dragon.y - 48, '#ffd36b');
@@ -507,6 +596,7 @@ export class GameScene extends Phaser.Scene {
 
     this.health -= 1;
     this.invulnerableMs = 980;
+    this.hitStopMs = 80;
     this.cameras.main.shake(130, 0.006);
     this.cameras.main.flash(130, 255, 127, 127);
     this.spawnBurst(this.dragon.x, this.dragon.y, 0xff7f7f, 12);
@@ -564,6 +654,66 @@ export class GameScene extends Phaser.Scene {
         ease: 'Sine.out',
         onComplete: () => spark.destroy()
       });
+    }
+  }
+
+  private spawnTrailGhost() {
+    if (!this.dragon) return;
+    const ghost = this.add.ellipse(this.dragon.x, this.dragon.y, 50, 32, 0xff8b5d, 0.26)
+      .setDepth(DEPTHS.dragon - 1)
+      .setAngle(this.dragon.angle);
+    this.tweens.add({
+      targets: ghost,
+      alpha: 0,
+      scaleX: 0.66,
+      scaleY: 0.66,
+      duration: 260,
+      ease: 'Sine.out',
+      onComplete: () => ghost.destroy()
+    });
+  }
+
+  private shatterPillar(pillar: PillarPair) {
+    const color = pillar.danger ? 0x4c1d4f : 0x173759;
+    const edge = pillar.danger ? 0xff8b49 : 0x7dd3fc;
+    for (let i = 0; i < 11; i++) {
+      const size = Phaser.Math.Between(8, 22);
+      const frag = this.add.rectangle(
+        pillar.x + Phaser.Math.Between(-26, 26),
+        Phaser.Math.Between(40, GAME_HEIGHT - 40),
+        size,
+        size,
+        i % 3 === 0 ? edge : color,
+        0.96
+      ).setDepth(DEPTHS.effects).setAngle(Phaser.Math.Between(0, 360));
+      this.tweens.add({
+        targets: frag,
+        x: frag.x + Phaser.Math.Between(-130, 170),
+        y: frag.y + Phaser.Math.Between(60, 240),
+        angle: frag.angle + Phaser.Math.Between(-220, 220),
+        alpha: 0,
+        duration: Phaser.Math.Between(440, 780),
+        ease: 'Quad.in',
+        onComplete: () => frag.destroy()
+      });
+    }
+  }
+
+  private drawVignette() {
+    const g = this.vignette;
+    if (!g) return;
+    g.clear();
+    if (this.health > 1 || this.gameEnded) return;
+
+    const pulse = 0.16 + Math.sin(this.time.now / 240) * 0.1;
+    // Soft red danger edges: three nested bands of increasing strength.
+    const bands: Array<[number, number]> = [[120, 0.32], [80, 0.6], [42, 1]];
+    for (const [band, strength] of bands) {
+      g.fillStyle(0xff2d2d, Math.max(0, pulse * strength));
+      g.fillRect(0, 0, GAME_WIDTH, band);
+      g.fillRect(0, GAME_HEIGHT - band, GAME_WIDTH, band);
+      g.fillRect(0, 0, band, GAME_HEIGHT);
+      g.fillRect(GAME_WIDTH - band, 0, band, GAME_HEIGHT);
     }
   }
 
