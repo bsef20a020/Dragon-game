@@ -1,10 +1,9 @@
 # Dragon Flight — Godot 4 edition
 
-A faithful port of the Phaser/TypeScript browser game to **Godot 4**, built for
-desktop distribution (Windows / macOS / Linux).
+An arcade flap-and-dodge game built with **Godot 4** (pure GDScript), for
+desktop distribution (Windows / macOS / Linux) and the web.
 
-The gameplay, tuning numbers, and visual style match the web build 1:1 — the same
-five modes, flap physics, sky gates (normal + volatile), pickups (crystal / heart /
+Five modes, flap physics, sky gates (normal + volatile), pickups (crystal / heart /
 shield), the fire-breath ability with its cooldown ring, health/shield/invuln, HUD,
 and per-mode high scores.
 
@@ -79,18 +78,5 @@ godot/
     game_over.gd
 ```
 
-## Mapping from the web build
-
-| Phaser / TS | Godot |
-|-------------|-------|
-| `src/game/constants.ts` (MODES) | `scripts/game_data.gd` |
-| `src/game/persistence.ts` (localStorage) | `scripts/save_data.gd` (`user://` JSON) |
-| `GameScene.ts` | `scripts/game.gd` + `scenes/Game.tscn` |
-| `HudScene.ts` | `scripts/hud.gd` (CanvasLayer overlay) |
-| `MenuScene.ts` | `scripts/menu.gd` |
-| `GameOverScene.ts` | `scripts/game_over.gd` |
-| `BootScene.ts` (procedural textures) | shapes drawn directly in `_draw()` |
-
-Physics is stepped in milliseconds (`delta_ms = delta * 1000`) so the feel matches
-the original frame math exactly. High scores live in a separate save file from the
-web version, so the two builds keep independent bests.
+Physics is stepped in milliseconds (`delta_ms = delta * 1000`) to keep the frame
+math consistent across refresh rates.

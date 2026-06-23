@@ -4,15 +4,10 @@
 
 A fast, arcade flap-and-dodge game — fly a dragon through sky gates, grab
 pickups, and breathe fire to clear your path. Five tuned game modes, a shared
-**Daily Seed** challenge, and per-mode high scores.
+**Daily Seed** challenge, and per-mode high scores. Built with **Godot 4**
+(pure GDScript) and playable on desktop or in the browser.
 
-> **Two editions live in this repo.** The **Godot 4 desktop/web game in
-> [`godot/`](godot/) is the current, actively developed version.** The
-> TypeScript/Phaser files at the repo root (`index.html`, `src/`,
-> `dragon-flight.html`) are the original **legacy web build**, kept for
-> reference — they are no longer the focus of development.
-
-## Play the current (Godot) version
+## Play the game
 
 Requires [Godot 4.3+](https://godotengine.org/download) (standard build — pure
 GDScript, no C#). From the `godot/` folder:
@@ -71,7 +66,6 @@ godot/                 Godot 4 game (current)
   tests/               headless test suite
   play.sh build-web.sh serve-web.sh run-tests.sh
 .github/workflows/     CI (runs the test suite)
-src/ index.html …      legacy Phaser/TypeScript web build (reference only)
 ```
 
 See [`godot/README.md`](godot/README.md) for engine-specific details and
