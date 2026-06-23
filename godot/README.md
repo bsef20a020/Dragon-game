@@ -34,6 +34,18 @@ Or launch the Godot editor, click **Import**, and select `godot/project.godot`.
 | Menu: select mode | Arrow keys / click a card |
 | Menu: start | Space / Enter / Start button |
 
+## Run the tests
+
+A headless GDScript test suite covers the game logic (mode-table integrity,
+high-score persistence, scoring multipliers, gate-collision geometry, the
+shared `Gfx` helpers, and the HUD button hit-areas). It exits non-zero on
+failure, so it drops straight into CI:
+
+```bash
+./run-tests.sh            # from godot/
+# or: godot4 --headless --path . res://tests/Tests.tscn
+```
+
 ## Build desktop binaries
 
 1. In the editor: **Editor ▸ Manage Export Templates ▸ Download and Install**
