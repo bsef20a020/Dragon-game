@@ -1,0 +1,1291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="application-name" content="Dragon Flight by Skyforge Studio" />
+<link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+<title>Dragon Flight — Mythic Run v2</title>
+<style>
+  :root{
+    --bg1:#071428;
+    --bg2:#102844;
+    --ink:#e8f0ff;
+    --muted:#b9c7e4;
+    --card:rgba(255,255,255,0.04);
+    --line:rgba(255,255,255,0.08);
+    --hot:#ff8b49;
+    --warm:#ffc968;
+    --cold:#7dd3fc;
+    --storm:#c4b5fd;
+    --good:#78f0a4;
+    --bad:#ff7f7f;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    display:block;
+    background:
+      radial-gradient(1200px 500px at 20% -10%, rgba(255,180,120,.12), transparent 60%),
+      radial-gradient(900px 500px at 100% 10%, rgba(120,180,255,.12), transparent 60%),
+      linear-gradient(180deg,var(--bg1),var(--bg2));
+    color:var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    overflow:hidden;
+  }
+  .wrap{
+    width:100vw;
+    padding:0;
+    display:block;
+    height:100vh;
+    position:relative;
+  }
+  @media (max-width:980px){ .wrap{height:100vh} body{overflow:hidden} }
+  .card{
+    background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+    border:1px solid var(--line);
+    border-radius:14px;
+    box-shadow:0 18px 45px rgba(2,8,22,.45), inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .game-area{position:relative;overflow:hidden;min-height:0;height:100%;padding:0}
+  .game-area.card{border:none;border-radius:0;box-shadow:none;background:transparent}
+  canvas{
+    display:block;width:100%;height:100%;border-radius:0;
+    background:linear-gradient(180deg,#081327,#060d1f);
+    touch-action:none;
+  }
+  .sidebar{
+    position:absolute;
+    left:50%;
+    bottom:12px;
+    transform:translate(-50%, 10px);
+    width:min(1100px, calc(100% - 24px));
+    max-height:46vh;
+    overflow:auto;
+    padding:10px;
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0,1fr));
+    gap:10px;
+    z-index:70;
+    background:rgba(5,10,20,.74);
+    border:1px solid var(--line);
+    border-radius:14px;
+    backdrop-filter:blur(8px);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease;
+  }
+  .sidebar.open{
+    transform:translate(-50%, 0);
+    opacity:1;
+    pointer-events:auto;
+  }
+  @media (max-width:980px){
+    .sidebar{
+      grid-template-columns:1fr;
+      max-height:58vh;
+      width:calc(100% - 14px);
+      left:7px;
+      transform:translate(0, 10px);
+    }
+    .sidebar.open{transform:translate(0,0)}
+  }
+  .panel-card{padding:12px}
+  h1,h2,h3{margin:0;color:var(--ink)}
+  h1{font-size:20px}
+  h2{font-size:15px}
+  h3{font-size:13px}
+  .small{font-size:12px;color:var(--muted)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .stack{display:flex;flex-direction:column;gap:8px}
+  .btn{
+    appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.03);
+    color:var(--ink);padding:10px 12px;border-radius:10px;font-weight:600;cursor:pointer;
+  }
+  .btn:hover{background:rgba(255,255,255,.06)}
+  .btn.primary{background:linear-gradient(90deg,#ff8b67,#ffd36b);color:#10203a;border-color:transparent}
+  .btn.slim{padding:6px 8px;font-size:12px}
+  .btn[data-active="true"]{outline:2px solid rgba(255,210,110,.45);background:rgba(255,255,255,.08)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  select{
+    width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--line);
+    background:rgba(255,255,255,.03);color:var(--ink);
+  }
+  option{background:#12223c;color:#fff}
+  .meter{height:10px;background:rgba(0,0,0,.22);border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,.04)}
+  .meter > div{height:100%;transform-origin:left}
+  .meter.fire > div{background:linear-gradient(90deg,var(--hot),var(--warm))}
+  .meter.hp > div{background:linear-gradient(90deg,#ff6b6b,#ffa15c)}
+  .meter.boss > div{background:linear-gradient(90deg,#a78bfa,#f472b6)}
+  .meter.combo > div{background:linear-gradient(90deg,#34d399,#22d3ee)}
+  .hud{
+    position:absolute;left:18px;top:18px;z-index:30;
+    display:flex;flex-direction:column;gap:6px;
+    font-weight:700;text-shadow:0 2px 10px rgba(0,0,0,.55);
+    pointer-events:none;
+  }
+  .hud .hud-controls{display:flex;gap:6px;pointer-events:auto}
+  .hud .hud-controls .btn{pointer-events:auto;background:rgba(8,16,32,.55)}
+  .hud .big{font-size:20px}
+  .hud .mini{font-size:12px;color:#dbe7ff}
+  .toast-layer{
+    position:absolute;inset:0;pointer-events:none;z-index:40;
+  }
+  .float-text{
+    position:absolute;left:50%;top:20%;transform:translate(-50%,0);
+    padding:8px 12px;border-radius:999px;border:1px solid var(--line);
+    background:rgba(8,14,28,.75);font-weight:700;font-size:13px;
+    animation: riseFade .9s ease forwards;
+    white-space:nowrap;
+  }
+  @keyframes riseFade{
+    0%{opacity:0;transform:translate(-50%,10px) scale(.96)}
+    15%{opacity:1}
+    100%{opacity:0;transform:translate(-50%,-28px) scale(1.02)}
+  }
+  .overlay{
+    position:absolute;inset:10px;display:flex;align-items:center;justify-content:center;z-index:60;
+    pointer-events:none;
+  }
+  .overlay.hidden{display:none}
+  .sheet{
+    width:min(560px,92%);pointer-events:auto;padding:16px;border-radius:14px;
+    background:linear-gradient(180deg, rgba(10,16,32,.92), rgba(6,10,22,.94));
+    border:1px solid var(--line);
+    box-shadow:0 20px 40px rgba(0,0,0,.4);
+  }
+  .sheet h2{font-size:22px;margin-bottom:6px}
+  .sheet p{margin:0;color:var(--muted);font-size:13px}
+  .sheet .section{margin-top:12px}
+  .tag{
+    display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 8px;border-radius:999px;
+    border:1px solid var(--line);background:rgba(255,255,255,.03);color:#dce9ff;
+  }
+  .list{display:flex;flex-direction:column;gap:6px}
+  .item{
+    border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);
+    border-radius:10px;padding:8px;
+  }
+  .item.done{border-color:rgba(120,240,164,.26);background:rgba(120,240,164,.06)}
+  .pill{
+    font-size:11px;border-radius:999px;padding:2px 8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);
+  }
+  .kbd{padding:2px 6px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid var(--line);font-size:11px}
+  .muted{color:var(--muted)}
+  .divider{height:1px;background:rgba(255,255,255,.06);margin:8px 0}
+  .danger{color:#ffb3b3}
+  .good{color:#a2f7be}
+  .warn{color:#ffe4a2}
+</style>
+</head>
+<body>
+<div class="wrap" id="appWrap">
+  <div class="card game-area" aria-label="Dragon Flight game area">
+    <canvas id="game"></canvas>
+
+    <div class="hud">
+      <div class="big">Score <span id="hudScore">0</span> <span class="tag" id="multTag">x1.0</span></div>
+      <div class="mini">High <span id="hudHigh">0</span> • Mode <span id="hudMode">classic</span> • Biome <span id="hudBiome">Volcanic Reach</span></div>
+      <div class="mini">Element <span id="hudElement">Fire</span> • Combo <span id="hudCombo">0</span> • Near-Miss <span id="hudNear">0</span></div>
+      <div class="mini" id="hudBossLine" style="display:none">Boss: <span id="hudBossName">-</span></div>
+      <div class="mini">Level <span id="hudLevel">1</span> • Time <span id="hudLevelTimer">2:00</span></div>
+      <div class="mini hud-controls">
+        <button class="btn slim" id="intelBtn">Run Intel</button>
+        <button class="btn slim" id="fullscreenBtn">Fullscreen</button>
+      </div>
+    </div>
+
+    <div class="toast-layer" id="toastLayer"></div>
+
+    <div class="overlay" id="overlay">
+      <div class="sheet" id="sheetStart">
+        <h2>Dragon Flight: Mythic Run</h2>
+        <p class="small" style="margin-bottom:8px">A Skyforge Studio game</p>
+        <p>Build your dragon, clear 2-minute levels, unlock achievements, defeat bosses, and scale your run.</p>
+
+        <div class="section grid2">
+          <div>
+            <div class="small">Mode</div>
+            <select id="modeSelect">
+              <option value="classic">Classic</option>
+              <option value="bossrush">Boss Rush</option>
+              <option value="daily">Daily Seed</option>
+              <option value="zen">Zen</option>
+              <option value="hardcore">Hardcore</option>
+            </select>
+          </div>
+          <div>
+            <div class="small">Dragon Element</div>
+            <select id="elementSelect">
+              <option value="fire">Fire</option>
+              <option value="ice">Ice</option>
+              <option value="storm">Storm</option>
+              <option value="shadow">Shadow</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="small">Start Biome (Level)</div>
+          <select id="biomeSelect">
+            <option value="auto">Auto by Element</option>
+            <option value="volcano">Volcanic Reach</option>
+            <option value="frost">Frozen Peaks</option>
+            <option value="storm">Tempest Veins</option>
+            <option value="ruins">Sky Ruins</option>
+            <option value="nightwood">Nightwood Canopy</option>
+          </select>
+        </div>
+
+        <div class="section grid2">
+          <div>
+            <div class="small">Relic 1</div>
+            <select id="relic1Select"></select>
+          </div>
+          <div>
+            <div class="small">Relic 2</div>
+            <select id="relic2Select"></select>
+          </div>
+        </div>
+
+        <div class="section grid2">
+          <div>
+            <div class="small">Skin</div>
+            <select id="skinSelect"></select>
+          </div>
+          <div>
+            <div class="small">Hatchling Pet</div>
+            <select id="petSelect"></select>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="small">Quick Tips</div>
+          <div class="grid2" style="margin-top:6px">
+            <div class="tag">Fly: Click/Tap/Space/W/↑</div>
+            <div class="tag">Ability: <span id="abilityTag">F</span></div>
+            <div class="tag">Pause: P / Esc</div>
+            <div class="tag">Photo: C</div>
+            <div class="tag">Ghost: G</div>
+            <div class="tag">Intel: H / I</div>
+            <div class="tag">Fullscreen: M</div>
+            <div class="tag">Start/Retry: Enter</div>
+            <div class="tag">Path choice via high/low route</div>
+          </div>
+          <div class="item" id="elementGuide" style="margin-top:8px">
+            <div class="row"><strong>Element Power</strong><span class="pill">Fire</span></div>
+            <div class="small">Fire Breath burns enemies, projectiles, and nearby pillars.</div>
+          </div>
+        </div>
+
+        <div class="section stack">
+          <div id="dailySeedNote" class="small"></div>
+          <div class="row">
+            <button class="btn primary" id="startBtn">Start Run</button>
+            <button class="btn" id="howBtn">How To Play</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sheet" id="sheetPause" style="display:none">
+        <h2>Paused</h2>
+        <p>Resume when ready.</p>
+        <div class="section row">
+          <button class="btn primary" id="resumeBtn">Resume</button>
+          <button class="btn" id="cancelBtnPause">Cancel Run</button>
+          <button class="btn" id="photoBtnPause">Photo</button>
+        </div>
+      </div>
+
+      <div class="sheet" id="sheetGameOver" style="display:none">
+        <h2 id="gameOverTitle">Run Complete</h2>
+        <p id="gameOverSummary">You crashed.</p>
+        <div class="section grid2">
+          <div class="item">
+            <div class="small">Final Score</div>
+            <div id="finalScore" style="font-size:20px;font-weight:700">0</div>
+          </div>
+          <div class="item">
+            <div class="small">Best This Mode</div>
+            <div id="finalBest" style="font-size:20px;font-weight:700">0</div>
+          </div>
+        </div>
+        <div class="section grid2">
+          <div class="item"><div class="small">Combo Peak</div><div id="finalCombo">0</div></div>
+          <div class="item"><div class="small">Biome Reached</div><div id="finalBiome">-</div></div>
+        </div>
+        <div class="section list" id="runRewards"></div>
+        <div class="section row">
+          <button class="btn primary" id="retryBtn">Play Again</button>
+          <button class="btn" id="shareBtn">Share/Copy</button>
+        </div>
+      </div>
+
+      <div class="sheet" id="sheetLevelClear" style="display:none">
+        <h2 id="levelClearTitle">Level Cleared</h2>
+        <p id="levelClearSummary">Choose one upgrade, then continue.</p>
+        <div class="section list" id="levelRewardChoices"></div>
+        <div class="section row">
+          <button class="btn primary" id="nextLevelBtn" disabled>Next Level</button>
+        </div>
+      </div>
+
+      <div class="sheet" id="sheetHow" style="display:none">
+        <h2>How To Play</h2>
+        <p>Arcade controls with biomes, bosses, and progression systems.</p>
+        <div class="section list">
+          <div class="item">Fly: Click/Tap/Space/W/Up Arrow</div>
+          <div class="item">Element Ability: F</div>
+          <div class="item">Pause: P or Esc</div>
+          <div class="item">Each level is 2:00. Survive timer to clear level.</div>
+          <div class="item">Run Intel panel: H or HUD button</div>
+          <div class="item">Screenshot: C</div>
+          <div class="item">Ghost Toggle: G</div>
+        </div>
+        <div class="section list">
+          <div class="item">Choose Start Biome for different level routes.</div>
+          <div class="item">Pick high portal for danger multiplier and tougher pace.</div>
+          <div class="item">Use relics, pets, and skill points to scale builds.</div>
+        </div>
+        <div class="section row">
+          <button class="btn primary" id="closeHowBtn">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar" id="sidebar">
+    <div class="card panel-card stack">
+      <div class="row"><h1>Run Systems</h1><span class="pill" id="runStatePill">Idle</span></div>
+      <div class="small">This version adds elements, biomes, enemies, bosses, quests, relics, and progression.</div>
+      <div class="small">Easy controls: <span class="kbd">Space</span>/<span class="kbd">W</span>/<span class="kbd">↑</span> flap, <span class="kbd">F</span> ability, <span class="kbd">P</span>/<span class="kbd">Esc</span> pause.</div>
+      <div class="grid2">
+        <div class="item"><div class="small">Mode</div><div id="sideMode">classic</div></div>
+        <div class="item"><div class="small">Element</div><div id="sideElement">Fire</div></div>
+      </div>
+      <div class="grid2">
+        <div class="item"><div class="small">Biome</div><div id="sideBiome">Volcanic Reach</div></div>
+        <div class="item"><div class="small">Boss</div><div id="sideBoss">None</div></div>
+      </div>
+    </div>
+
+    <div class="card panel-card stack">
+      <div class="row"><h2>Score & Combat</h2><span id="dangerPathBadge" class="pill">Safe Path</span></div>
+      <div class="grid3">
+        <div class="item"><div class="small">Score</div><div id="sideScore">0</div></div>
+        <div class="item"><div class="small">High</div><div id="sideHigh">0</div></div>
+        <div class="item"><div class="small">Combo</div><div id="sideCombo">0</div></div>
+      </div>
+      <div class="row small"><span>Combo Meter</span><span id="comboText">0%</span></div>
+      <div class="meter combo"><div id="comboBar" style="width:100%;transform:scaleX(0)"></div></div>
+      <div class="grid3">
+        <div class="item"><div class="small">Near-Miss</div><div id="nearMissCount">0</div></div>
+        <div class="item"><div class="small">Finishers</div><div id="finisherCount">0</div></div>
+        <div class="item"><div class="small">Crystals</div><div id="runCrystals">0</div></div>
+      </div>
+    </div>
+
+    <div class="card panel-card stack">
+      <div class="row"><h2>Abilities & Survival</h2><span class="small" id="abilityName">Fire Breath</span></div>
+      <div class="row small"><span>Ability Cooldown</span><span id="firePct">Ready</span></div>
+      <div class="meter fire"><div id="fireBar" style="transform:scaleX(1)"></div></div>
+      <div class="row small"><span>HP / Shields</span><span id="hpText">3</span></div>
+      <div class="meter hp"><div id="hpBar" style="transform:scaleX(1)"></div></div>
+      <div class="row small"><span>Boss Health</span><span id="bossHpText">-</span></div>
+      <div class="meter boss"><div id="bossBar" style="transform:scaleX(0)"></div></div>
+      <div class="row small"><span>Mutation</span><span id="mutationText">None</span></div>
+      <div class="grid2">
+        <button class="btn primary" id="flapBtn">Flap</button>
+        <button class="btn primary" id="fireBtn">Use Ability</button>
+      </div>
+      <div class="grid2">
+        <button class="btn" id="pauseBtn">Pause</button>
+        <button class="btn" id="cancelBtn">Cancel Run</button>
+      </div>
+      <div class="grid2">
+        <button class="btn" id="photoBtn">Photo</button>
+        <button class="btn" id="ghostBtn">Ghost: On</button>
+      </div>
+      <div class="grid2">
+        <button class="btn" id="sidebarBtn">Hide Panels</button>
+        <button class="btn" id="focusBtn">Focus Mode</button>
+      </div>
+    </div>
+
+    <div class="card panel-card stack">
+      <div class="row"><h2>Quests</h2><span class="small" id="questDate"></span></div>
+      <div id="questList" class="list"></div>
+    </div>
+
+    <div class="card panel-card stack">
+      <div class="row"><h2>Meta Progression</h2><span class="pill" id="metaPoints">0 SP</span></div>
+      <div class="grid3">
+        <div class="item"><div class="small">Crystals</div><div id="metaCrystals">0</div></div>
+        <div class="item"><div class="small">Achievements</div><div id="achCount">0</div></div>
+        <div class="item"><div class="small">Bestiary</div><div id="bestiaryCount">0</div></div>
+      </div>
+      <div class="small">Skill Tree</div>
+      <div id="skillTree" class="list"></div>
+      <div class="small">Skins / Pets unlock through milestones and quests.</div>
+      <div id="unlockList" class="list"></div>
+    </div>
+
+    <div class="card panel-card stack">
+      <div class="row"><h2>Modes & Replay</h2><span class="small" id="dailyLabel"></span></div>
+      <div class="small">Daily Seed gives a shared map pattern for today. Ghost uses your previous run trace.</div>
+      <div class="grid3">
+        <div class="item"><div class="small">Last Run</div><div id="lastRunScore">0</div></div>
+        <div class="item"><div class="small">Ghost Status</div><div id="ghostStatus">Ready</div></div>
+        <div class="item"><div class="small">Best Level</div><div id="bestLevel">1</div></div>
+      </div>
+      <div class="small">Achievements</div>
+      <div id="achievementList" class="list"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createSeededRng, hashString, randomBetween } from './src/engine/random.js';
+import { loadMetaFromStorage, saveMetaToStorage } from './src/storage/meta.js';
+import { totalCompletedQuests as totalCompletedQuestsFromMeta, finalizeQuestsFromRun as finalizeQuestsFromRunCore } from './src/progression/quests.js';
+import { evaluateAchievementsForRun } from './src/progression/achievements.js';
+import { renderFrame } from './src/render/canvas-renderer.js';
+import { updateHUD as updateHUDView, renderMetaPanels as renderMetaPanelsView, updateQuestUI as updateQuestUIView, updateElementGuide as updateElementGuideView } from './src/ui/ui-panels.js';
+import { renderGameOverSheet } from './src/ui/gameover-view.js';
+import { switchOverlayPanels, setSidebarCollapsedState } from './src/ui/shell.js';
+import { buildShareText, shareOrCopyText, takeCanvasPhoto, toggleFullscreenMode } from './src/ui/actions.js';
+import { handlePointerDownEvent, handleKeyEvent } from './src/ui/input.js';
+import { startRun, pauseRun, resumeRun, cancelRun } from './src/engine/run-lifecycle.js';
+import { applyRunScoreAndCurrency, applyUnlocksAndReplay, buildGameOverSummary } from './src/engine/endgame.js';
+import { castBeamAbility, chainZapAbility, frostBlastAbility, shadowSlashAbility, doAbilityCast } from './src/engine/abilities.js';
+import { spawnObstacleForGame, spawnPortalChoiceForGame, spawnBossForGame, updateBossForGame, spawnEventsForGame } from './src/engine/spawn-events.js';
+import { checkNearMissesForGame, applyPickupForGame, updatePortalsForGame } from './src/engine/update-support.js';
+import { runUpdateFrame } from './src/engine/update-loop.js';
+import { createParticlesForGame, spawnFloaterForGame, spawnBurstForGame, registerBestiaryForMeta, addScoreForGame, registerKillScoreForGame, damageObstacleForGame, damagePlayerForGame } from './src/engine/combat-core.js';
+import { freshPlayerState, preferredBiomeIndex, baseRelicModifiers, applySkillTreeBonuses, selectLoadoutFromUI, resetGameState } from './src/engine/run-setup.js';
+
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const canvas = $('game');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  const raf = (window.requestAnimationFrame && window.requestAnimationFrame.bind(window))
+    || ((fn) => setTimeout(() => fn(performance.now()), 16));
+
+  const toastLayer = $('toastLayer');
+  const overlay = $('overlay');
+  const sheetStart = $('sheetStart');
+  const sheetPause = $('sheetPause');
+  const sheetGameOver = $('sheetGameOver');
+  const sheetLevelClear = $('sheetLevelClear');
+  const sheetHow = $('sheetHow');
+  const sidebar = $('sidebar');
+
+  const ui = {
+    hudScore: $('hudScore'), hudHigh: $('hudHigh'), hudMode: $('hudMode'), hudBiome: $('hudBiome'), hudElement: $('hudElement'),
+    hudCombo: $('hudCombo'), hudNear: $('hudNear'), multTag: $('multTag'), hudBossLine: $('hudBossLine'), hudBossName: $('hudBossName'),
+    hudLevel: $('hudLevel'), hudLevelTimer: $('hudLevelTimer'),
+    sideScore: $('sideScore'), sideHigh: $('sideHigh'), sideCombo: $('sideCombo'), sideMode: $('sideMode'), sideElement: $('sideElement'),
+    sideBiome: $('sideBiome'), sideBoss: $('sideBoss'), runStatePill: $('runStatePill'), dangerPathBadge: $('dangerPathBadge'),
+    comboBar: $('comboBar'), comboText: $('comboText'), nearMissCount: $('nearMissCount'), finisherCount: $('finisherCount'), runCrystals: $('runCrystals'),
+    fireBar: $('fireBar'), firePct: $('firePct'), abilityName: $('abilityName'), hpBar: $('hpBar'), hpText: $('hpText'),
+    bossBar: $('bossBar'), bossHpText: $('bossHpText'), mutationText: $('mutationText'),
+    modeSelect: $('modeSelect'), elementSelect: $('elementSelect'), biomeSelect: $('biomeSelect'), relic1Select: $('relic1Select'), relic2Select: $('relic2Select'),
+    skinSelect: $('skinSelect'), petSelect: $('petSelect'), abilityTag: $('abilityTag'), dailySeedNote: $('dailySeedNote'), elementGuide: $('elementGuide'),
+    questDate: $('questDate'), questList: $('questList'), metaCrystals: $('metaCrystals'), metaPoints: $('metaPoints'), achCount: $('achCount'),
+    bestiaryCount: $('bestiaryCount'), skillTree: $('skillTree'), unlockList: $('unlockList'), dailyLabel: $('dailyLabel'),
+    achievementList: $('achievementList'), lastRunScore: $('lastRunScore'), bestLevel: $('bestLevel'), ghostStatus: $('ghostStatus'), ghostBtn: $('ghostBtn'),
+    sidebarBtn: $('sidebarBtn'), focusBtn: $('focusBtn'), intelBtn: $('intelBtn'), fullscreenBtn: $('fullscreenBtn'), closeHowBtn: $('closeHowBtn'),
+    levelClearTitle: $('levelClearTitle'), levelClearSummary: $('levelClearSummary'), levelRewardChoices: $('levelRewardChoices'),
+    finalScore: $('finalScore'), finalBest: $('finalBest'), finalCombo: $('finalCombo'), finalBiome: $('finalBiome'), runRewards: $('runRewards'),
+    gameOverTitle: $('gameOverTitle'), gameOverSummary: $('gameOverSummary'), bossHpText: $('bossHpText')
+  };
+
+  const controls = {
+    startBtn: $('startBtn'), howBtn: $('howBtn'), resumeBtn: $('resumeBtn'), retryBtn: $('retryBtn'), shareBtn: $('shareBtn'),
+    flapBtn: $('flapBtn'), fireBtn: $('fireBtn'), pauseBtn: $('pauseBtn'), cancelBtn: $('cancelBtn'), cancelBtnPause: $('cancelBtnPause'),
+    photoBtn: $('photoBtn'), photoBtnPause: $('photoBtnPause'), sidebarBtn: $('sidebarBtn'), focusBtn: $('focusBtn'), closeHowBtn: $('closeHowBtn'),
+    nextLevelBtn: $('nextLevelBtn')
+  };
+
+  let W = 960, H = 600;
+  function resizeCanvas() {
+    const host = canvas.parentElement;
+    const rect = host.getBoundingClientRect();
+    const cssW = Math.max(320, Math.floor(rect.width));
+    const cssH = Math.max(320, Math.floor(rect.height));
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    W = cssW; H = cssH;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  const todayKey = new Date().toISOString().slice(0,10);
+  let meta = loadMetaFromStorage(localStorage);
+  function saveMeta(){
+    try { saveMetaToStorage(localStorage, meta); } catch {}
+  }
+
+  const seeded = createSeededRng();
+  const rng = (a,b,useSeed=false) => randomBetween(a, b, useSeed ? seeded.next : Math.random);
+
+  const ELEMENTS = {
+    fire: {
+      name: 'Fire', ability: 'Fire Breath', color: '#ffad66', cooldown: 5000,
+      onCast(g){ g.player.vy -= 1.6; g.speedBoost += 0.8; g.hitStop = 2; g.cameraShake += 6; castBeam('fire'); },
+      desc: 'Burns hazards in a cone and triggers finishers.'
+    },
+    ice: {
+      name: 'Ice', ability: 'Frost Time', color: '#8fe7ff', cooldown: 6000,
+      onCast(g){ g.slowTimeMs = 1600 + g.bonuses.abilityPlus*150; g.player.vy -= 1.2; g.cameraShake += 3; g.flash = 0.1; spawnBurst(g.player.x+12,g.player.y,'ice'); frostBlast(); },
+      desc: 'Slows time and shatters nearby enemies/projectiles.'
+    },
+    storm: {
+      name: 'Storm', ability: 'Chain Lightning', color: '#d8b4fe', cooldown: 5500,
+      onCast(g){ g.player.vy -= 1.4; castBeam('storm'); chainZap(3 + g.bonuses.abilityPlus); g.cameraShake += 4; },
+      desc: 'Zaps multiple enemies and projectiles.'
+    },
+    shadow: {
+      name: 'Shadow', ability: 'Phase Veil', color: '#c4b5fd', cooldown: 6500,
+      onCast(g){ g.player.phaseFrames = 90 + g.bonuses.abilityPlus*20; g.player.vy -= 1; g.player.shadowAuraCd = 0; g.flash = 0.08; spawnBurst(g.player.x,g.player.y,'shadow'); shadowSlash(120); },
+      desc: 'Phases through danger and damages nearby enemies.'
+    }
+  };
+
+  const MODES = {
+    classic: { name:'Classic', speed:1, damageScale:1, zen:false, hardcore:false, bossEvery:24 },
+    bossrush: { name:'Boss Rush', speed:1.08, damageScale:1, zen:false, hardcore:false, bossEvery:12 },
+    daily: { name:'Daily Seed', speed:1, damageScale:1, zen:false, hardcore:false, bossEvery:20, seeded:true },
+    zen: { name:'Zen', speed:0.9, damageScale:0, zen:true, hardcore:false, bossEvery:9999 },
+    hardcore: { name:'Hardcore', speed:1.18, damageScale:1.3, zen:false, hardcore:true, bossEvery:18 }
+  };
+
+  const BIOMES = [
+    { id:'volcano', name:'Volcanic Reach', sky:['#2a0f0f','#4d1d1b'], fog:'#ff7a4d', hazardBias:['pillar','hunter','airship'], pickupBias:'ember', wind:0.02 },
+    { id:'frost', name:'Frozen Peaks', sky:['#061b33','#103d63'], fog:'#8fe7ff', hazardBias:['pillar','wyvern','wizard'], pickupBias:'crystal', wind:-0.01 },
+    { id:'storm', name:'Tempest Veins', sky:['#0d1035','#261a5f'], fog:'#c4b5fd', hazardBias:['orb','airship','hunter'], pickupBias:'storm', wind:0.04 },
+    { id:'ruins', name:'Sky Ruins', sky:['#102235','#24465a'], fog:'#9bd5b3', hazardBias:['wizard','pillar','wyvern'], pickupBias:'ancient', wind:0.00 },
+    { id:'nightwood', name:'Nightwood Canopy', sky:['#07191a','#113737'], fog:'#68e4c1', hazardBias:['wyvern','hunter','orb'], pickupBias:'shadow', wind:-0.02 }
+  ];
+
+  const ELEMENT_START_BIOME = { fire:'volcano', ice:'frost', storm:'storm', shadow:'nightwood' };
+
+  const RELICS = {
+    ember_heart: { name:'Ember Heart', desc:'Ability cooldown -12%', apply:(g)=>{ g.relicMods.cooldownMult *= 0.88; } },
+    hollow_bones: { name:'Hollow Bones', desc:'Higher flap, lower max HP', apply:(g)=>{ g.relicMods.flap += -0.7; g.relicMods.hp -= 1; } },
+    wind_fang: { name:'Wind Fang', desc:'Speed grants score multiplier', apply:(g)=>{ g.relicMods.windFang = true; } },
+    scale_mail: { name:'Scale Mail', desc:'+1 HP and longer shield', apply:(g)=>{ g.relicMods.hp += 1; g.relicMods.shieldFrames += 25; } },
+    crystal_lens: { name:'Crystal Lens', desc:'More crystals and mutation duration', apply:(g)=>{ g.relicMods.crystalMult *= 1.4; g.relicMods.mutationMult *= 1.35; } },
+    rune_map: { name:'Rune Map', desc:'More path portals and danger rewards', apply:(g)=>{ g.relicMods.portalRate *= 0.82; g.relicMods.dangerBonus += 0.35; } },
+    thunder_nerves: { name:'Thunder Nerves', desc:'Near-miss gives combo burst', apply:(g)=>{ g.relicMods.nearCombo += 8; } },
+    hunter_trophy: { name:'Hunter Trophy', desc:'Enemy kills increase finisher bonus', apply:(g)=>{ g.relicMods.finisherBonus += 1; } }
+  };
+
+  const SKINS = {
+    ember: { name:'Emberhide', color:'#ffc56d', accent:'#ff8d4f', unlock:'Starter skin' },
+    glacial: { name:'Glacial Crest', color:'#a5f3fc', accent:'#67e8f9', unlock:'Reach Frozen Peaks' },
+    tempest: { name:'Tempest Coil', color:'#d8b4fe', accent:'#a78bfa', unlock:'Defeat a boss' },
+    shadowmoss: { name:'Shadowmoss', color:'#86efac', accent:'#34d399', unlock:'Complete 6 quests' }
+  };
+
+  const PETS = {
+    none: { name:'None', desc:'No passive', apply(){} },
+    emberling: { name:'Emberling', desc:'Small ability cooldown bonus', apply:(g)=>{ g.relicMods.cooldownMult *= 0.95; } },
+    snowbat: { name:'Snowbat', desc:'Extra near-miss score', apply:(g)=>{ g.relicMods.nearScore += 0.5; } },
+    sparkwisp: { name:'Sparkwisp', desc:'Chance to duplicate crystal pickup', apply:(g)=>{ g.relicMods.crystalDupChance += 0.2; } }
+  };
+
+  const ACHIEVEMENTS = {
+    first_blood: { name:'First Flame', desc:'Destroy an enemy', test:(g,m)=>m.stats.kills >= 1 },
+    combo_10: { name:'Combo 10', desc:'Reach 10 combo', test:(g,m)=>m.stats.bestCombo >= 10 },
+    boss_down: { name:'Boss Breaker', desc:'Defeat any boss', test:(g,m)=>m.stats.bossesDefeated >= 1 },
+    near_5: { name:'Needle Threader', desc:'Get 5 near misses in one run', test:(g,m)=>m.stats.nearMisses >= 5 },
+    daily_clear: { name:'Daily Flyer', desc:'Finish a Daily Seed run', test:(g,m)=>m.stats.finishedDaily },
+    hardcore_20: { name:'Steel Wings', desc:'Score 20 in Hardcore', test:(g,m)=>m.stats.hardcore20 },
+    quester: { name:'Questing Claws', desc:'Complete 3 quests', test:(g,m)=>m.stats.totalQuestsCompleted >= 3 },
+    level_1: { name:'Sky Cadet', desc:'Clear Level 1', test:(g,m)=>m.stats.levelReached >= 2 },
+    level_3: { name:'Storm Rider', desc:'Reach Level 4', test:(g,m)=>m.stats.levelReached >= 4 }
+  };
+
+  const BESTIARY_NAMES = {
+    pillar:'Pillar', hunter:'Hunter', arrow:'Arrow', wyvern:'Wyvern', airship:'Airship', wizard:'Rune Trap', orb:'Storm Orb',
+    boss_serpent:'Sky Serpent', boss_galleon:'Ballista Galleon', boss_titan:'Thunder Titan'
+  };
+
+  function ensureQuests() {
+    if (meta.lastQuestDate === todayKey && meta.quests && Array.isArray(meta.quests)) return;
+    const pool = [
+      { id:'q_destroy', title:'Destroy 10 enemies', goal:10, type:'kills' },
+      { id:'q_nofire', title:'Score 12 without ability (one run)', goal:12, type:'nofire' },
+      { id:'q_storm', title:'Reach Tempest Veins', goal:1, type:'biome_storm' },
+      { id:'q_boss', title:'Defeat 1 boss', goal:1, type:'boss' },
+      { id:'q_crystals', title:'Collect 20 crystals', goal:20, type:'crystals' },
+      { id:'q_near', title:'Get 8 near misses', goal:8, type:'near' },
+      { id:'q_finishers', title:'Perform 6 finishers', goal:6, type:'finishers' },
+      { id:'q_daily', title:'Play the daily seed', goal:1, type:'daily_play' }
+    ];
+    const localSeed = hashString(todayKey + '-quests');
+    seeded.set(localSeed);
+    const picks = [];
+    while (picks.length < 3 && pool.length) {
+      picks.push(pool.splice(Math.floor(seeded.next() * pool.length), 1)[0]);
+    }
+    meta.quests = picks.map(q => ({ ...q, progress: 0, done:false, claimed:false }));
+    meta.lastQuestDate = todayKey;
+    saveMeta();
+  }
+  ensureQuests();
+
+  function populateSelect(select, items, selectedKey) {
+    select.innerHTML = '';
+    for (const [key, val] of Object.entries(items)) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = val.name;
+      opt.selected = key === selectedKey;
+      select.appendChild(opt);
+    }
+  }
+
+  function populateLoadoutUI() {
+    populateSelect(ui.relic1Select, Object.fromEntries(Object.keys(RELICS).map(k => [k, {name:RELICS[k].name}])), 'ember_heart');
+    populateSelect(ui.relic2Select, Object.fromEntries(Object.keys(RELICS).map(k => [k, {name:RELICS[k].name}])), 'wind_fang');
+    const skinItems = {};
+    for (const [k,v] of Object.entries(SKINS)) if (meta.unlockedSkins.includes(k)) skinItems[k] = v;
+    populateSelect(ui.skinSelect, skinItems, meta.selectedSkin in skinItems ? meta.selectedSkin : Object.keys(skinItems)[0]);
+    const petItems = {};
+    for (const [k,v] of Object.entries(PETS)) if (meta.unlockedPets.includes(k)) petItems[k] = v;
+    populateSelect(ui.petSelect, petItems, meta.selectedPet in petItems ? meta.selectedPet : Object.keys(petItems)[0]);
+  }
+  populateLoadoutUI();
+
+  ui.dailySeedNote.textContent = `Daily seed: ${todayKey}`;
+  ui.questDate.textContent = todayKey;
+  ui.dailyLabel.textContent = todayKey;
+  $('dailySeedNote').textContent = `Daily seed shared pattern: ${todayKey}`;
+
+  let ghostEnabled = true;
+  let sidebarCollapsed = false;
+  let audio = null;
+  function ensureAudio() {
+    if (audio || !window.AudioContext) return;
+    try {
+      const ac = new AudioContext();
+      const master = ac.createGain(); master.gain.value = 0.04; master.connect(ac.destination);
+      const base = ac.createOscillator(); base.type = 'triangle'; base.frequency.value = 110;
+      const baseG = ac.createGain(); baseG.gain.value = 0; base.connect(baseG).connect(master);
+      const layer = ac.createOscillator(); layer.type = 'sawtooth'; layer.frequency.value = 220;
+      const layerG = ac.createGain(); layerG.gain.value = 0; layer.connect(layerG).connect(master);
+      const pulse = ac.createOscillator(); pulse.type = 'square'; pulse.frequency.value = 2.4;
+      const pulseG = ac.createGain(); pulseG.gain.value = 0.0; pulse.connect(pulseG).connect(master);
+      base.start(); layer.start(); pulse.start();
+      audio = { ac, master, baseG, layerG, pulseG, started:true };
+    } catch {
+      audio = { disabled:true };
+    }
+  }
+
+  const game = {
+    running:false, started:false, paused:false, over:false,
+    modeKey:'classic', elementKey:'fire', biomeIndex:0,
+    score:0, high:0, distance:0, speed:2.25, baseSpeed:2.25,
+    gravity:0.36, flapPower:-7.4,
+    lastTime:0,
+    obstacles:[], projectiles:[], pickups:[], particles:[], portals:[],
+    abilityFx:[],
+    floaters:[],
+    boss:null,
+    obstacleTimer:0, obstacleInterval:1350,
+    biomeTimer:0, bossCheckScore:0,
+    cameraShake:0, hitStop:0, flash:0,
+    slowTimeMs:0,
+    combo:0, comboPeak:0, comboTimer:0, comboMeter:0,
+    nearMisses:0, finisherCount:0, scoreMultiplier:1,
+    fireLast:-99999, fireCooldown:5000,
+    trail:[], ghostTrace:[], ghostMeta:null,
+    ghostFrame:0,
+    pathMode:'safe', pathTimer:0,
+    eventTimer:0,
+    safePickupMs:0,
+    level:1,
+    firstLevelDurationMs:75000,
+    levelDurationMs:120000,
+    levelTimeMs:75000,
+    levelTransitionMs:0,
+    levelLabel:'',
+    levelClears:0,
+    runCrystals:0,
+    runStats:{ kills:0, bossesDefeated:0, abilitiesUsed:0, usedAbility:false, biomeReached:'Volcanic Reach', crystals:0, finishers:0 },
+    rewards:[],
+    relics:[],
+    relicMods:null,
+    bonuses:null,
+    modeConfig:null,
+    player:null
+  };
+
+  function freshPlayer() {
+    return freshPlayerState(H);
+  }
+
+  function preferredBiomeIndexForElement(elementKey) {
+    return preferredBiomeIndex(elementKey, ELEMENT_START_BIOME, BIOMES);
+  }
+
+  function baseRelicMods() {
+    return baseRelicModifiers();
+  }
+
+  function applySkillTree(g) {
+    applySkillTreeBonuses({ game: g, meta });
+  }
+
+  function selectLoadout() {
+    return selectLoadoutFromUI(ui);
+  }
+
+  function resetGame() {
+    resetGameState({
+      game,
+      meta,
+      ui,
+      MODES,
+      BIOMES,
+      ELEMENTS,
+      ELEMENT_START_BIOME,
+      RELICS,
+      PETS,
+      todayKey,
+      saveMeta,
+      levelDurationFor,
+      activeBiome,
+      rng,
+      hashString,
+      seeded,
+      ghostEnabled,
+      updateHUD,
+      updateQuestUI,
+      freshPlayer,
+      baseRelicMods,
+      applySkillTree,
+      preferredBiomeIndexForElement
+    });
+  }
+
+  function showToast(text, kind='') {
+    const el = document.createElement('div');
+    el.className = 'float-text';
+    el.textContent = text;
+    if (kind === 'good') el.style.boxShadow = '0 0 0 1px rgba(120,240,164,.2) inset';
+    if (kind === 'danger') el.style.boxShadow = '0 0 0 1px rgba(255,120,120,.2) inset';
+    toastLayer.appendChild(el);
+    setTimeout(() => el.remove(), 920);
+  }
+
+  function switchOverlay(which) {
+    switchOverlayPanels({
+      overlay,
+      sheets: { start: sheetStart, pause: sheetPause, gameover: sheetGameOver, how: sheetHow },
+      which
+    });
+  }
+
+  function setSidebarCollapsed(next) {
+    sidebarCollapsed = setSidebarCollapsedState({ sidebar, ui, next });
+  }
+
+  function startGame() {
+    startRun({ game, ensureAudio, audio, switchOverlay, resetGame, raf, loop });
+  }
+
+  function pauseGame() {
+    pauseRun({ game, ui, switchOverlay });
+  }
+
+  function resumeGame() {
+    resumeRun({ game, ui, switchOverlay, raf, loop });
+  }
+
+  function togglePause() { if (!game.started || game.over) return; game.paused ? resumeGame() : pauseGame(); }
+
+  function cancelRunToMenu() {
+    cancelRun({ game, ui, switchOverlay, showToast, initStartState });
+  }
+
+  function doFlap() {
+    if (!game.started || game.over) { startGame(); return; }
+    if (!game.running || game.paused) return;
+    if (game.levelTransitionMs > 0) return;
+    game.player.vy = game.flapPower - game.relicMods.flap - game.bonuses.flapPlus;
+    game.player.wing = 1.2;
+    createParticles(game.player.x-12, game.player.y+6, 8, '#d6ebff', [-1.4,-.2], [-1.4,-.4], [1,3]);
+  }
+
+  function castBeam(kind) {
+    castBeamAbility({
+      game,
+      kind,
+      damageObstacle,
+      createParticles,
+      registerKillScore,
+      showToast,
+      spawnFloater,
+      ELEMENTS
+    });
+  }
+
+  function chainZap(chains) {
+    chainZapAbility({ game, chains, damageObstacle, createParticles, registerKillScore });
+  }
+
+  function frostBlast() {
+    frostBlastAbility({ game, damageObstacle, createParticles, registerKillScore, showToast, spawnFloater });
+  }
+
+  function shadowSlash(radius = 110) {
+    shadowSlashAbility({ game, radius, damageObstacle, createParticles, registerKillScore, showToast, spawnFloater });
+  }
+
+  function doAbility() {
+    doAbilityCast({ game, ELEMENTS, showToast });
+  }
+
+  function getCooldownPct() {
+    return Math.min(1, (performance.now() - game.fireLast) / game.fireCooldown);
+  }
+
+  function activeBiome() { return BIOMES[game.biomeIndex % BIOMES.length]; }
+  function levelScale() { return 1 + Math.max(0, game.level - 1) * 0.14; }
+  function levelDurationFor(level) { return level === 1 ? game.firstLevelDurationMs : game.levelDurationMs; }
+  function formatMs(ms) {
+    const sec = Math.max(0, Math.ceil(ms / 1000));
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+  function clearStageForNextLevel() {
+    game.obstacles = [];
+    game.projectiles = [];
+    game.pickups = [];
+    game.portals = [];
+    game.boss = null;
+    game.pathMode = 'safe';
+    game.pathTimer = 0;
+    game.obstacleTimer = 0;
+    game.eventTimer = 0;
+  }
+  function advanceLevel() {
+    const cleared = game.level;
+    game.levelClears += 1;
+    meta.totalLevelClears = Number(meta.totalLevelClears || 0) + 1;
+    meta.highestLevelCleared = Math.max(Number(meta.highestLevelCleared || 0), cleared);
+    const levelReward = 4 + Math.floor(cleared * 1.5);
+    meta.crystals += levelReward;
+    if (cleared % 2 === 0) {
+      meta.skillPoints += 1;
+      game.rewards.push(`Level ${cleared} clear: +${levelReward} crystals, +1 SP`);
+    } else {
+      game.rewards.push(`Level ${cleared} clear: +${levelReward} crystals`);
+    }
+    game.level += 1;
+    game.levelTimeMs = levelDurationFor(game.level);
+    game.levelTransitionMs = 2200;
+    game.levelLabel = `Level ${cleared} Cleared`;
+    game.biomeIndex += 1;
+    game.runStats.biomeReached = activeBiome().name;
+    registerBiomeUnlock(activeBiome().id);
+    clearStageForNextLevel();
+    showToast(`Level ${cleared} Clear!`, 'good');
+    evaluateAchievements();
+    saveMeta();
+    renderMetaPanels();
+  }
+
+  function spawnObstacle() {
+    spawnObstacleForGame({ game, W, H, activeBiome, rng });
+  }
+
+  function spawnPortalChoice() {
+    spawnPortalChoiceForGame({ game, W, H, showToast });
+  }
+
+  function spawnBoss() {
+    spawnBossForGame({ game, W, H, activeBiome, registerBestiary, showToast });
+  }
+
+  function createParticles(x,y,count,color,vx=[-1,1],vy=[-1,1],size=[1,4]) {
+    createParticlesForGame({ game, rng, x, y, count, color, vx, vy, size });
+  }
+  function spawnFloater(x, y, text, color='#fff', size=14) {
+    spawnFloaterForGame({ game, x, y, text, color, size });
+  }
+  function spawnBurst(x,y,kind) {
+    spawnBurstForGame({ createParticles, x, y, kind });
+  }
+
+  function registerBestiary(type) {
+    registerBestiaryForMeta({ meta, type, BESTIARY_NAMES, showToast, saveMeta, renderMetaPanels });
+  }
+
+  function damageObstacle(ob, dmg, source='ability') {
+    damageObstacleForGame({ game, ob, dmg, source, spawnFloater, registerBestiary, createParticles, showToast });
+  }
+
+  function registerKillScore(count = 1, fromAbility = false) {
+    registerKillScoreForGame({ game, count, fromAbility, addScore });
+  }
+
+  function addScore(amount, reason='') {
+    addScoreForGame({ game, skills: meta.skills, amount, reason, showToast });
+  }
+
+  function damagePlayer(amount, reason='hit') {
+    damagePlayerForGame({ game, amount, reason, spawnFloater, createParticles, showToast, endGame });
+  }
+
+  function checkNearMiss() {
+    checkNearMissesForGame({ game, addScore });
+  }
+
+  function applyPickup(pick) {
+    applyPickupForGame({ game, pick, rng, addScore, createParticles, showToast });
+  }
+
+  function updatePortals(dt) {
+    updatePortalsForGame({ game, dt, showToast });
+  }
+
+  function updateBoss(dt) {
+    updateBossForGame({ game, meta, dt, W, H, rng, registerBestiary, addScore, createParticles, showToast, damagePlayer });
+  }
+
+  function spawnEvents(dt) {
+    spawnEventsForGame({
+      game,
+      dt,
+      rng,
+      onSpawnPortalChoice: spawnPortalChoice,
+      onSpawnBoss: spawnBoss
+    });
+  }
+
+  function update(dtRaw) {
+    runUpdateFrame({
+      game,
+      dtRaw,
+      H,
+      W,
+      audio,
+      rng,
+      activeBiome,
+      levelScale,
+      spawnObstacle,
+      shadowSlash,
+      addScore,
+      registerBestiary,
+      damageObstacle,
+      damagePlayer,
+      registerKillScore,
+      createParticles,
+      applyPickup,
+      updatePortals,
+      updateBoss,
+      spawnEvents,
+      checkNearMiss,
+      castBeam,
+      updateHUD,
+      syncQuestProgressLive,
+      showToast,
+      advanceLevel
+    });
+  }
+
+  function registerBiomeUnlock(biomeId) {
+    if (biomeId === 'frost' && !meta.unlockedSkins.includes('glacial')) meta.unlockedSkins.push('glacial');
+    if (biomeId === 'nightwood' && !meta.unlockedSkins.includes('shadowmoss') && totalCompletedQuests() >= 6) meta.unlockedSkins.push('shadowmoss');
+    if (biomeId === 'storm' && !meta.unlockedPets.includes('sparkwisp')) meta.unlockedPets.push('sparkwisp');
+    saveMeta();
+    populateLoadoutUI();
+    renderMetaPanels();
+  }
+
+  function render() {
+    renderFrame({
+      ctx,
+      game,
+      W,
+      H,
+      SKINS,
+      activeBiome,
+      ghostEnabled,
+      elementKey: game.elementKey || ui.elementSelect.value || 'fire',
+      rng: (a, b) => rng(a, b)
+    });
+  }
+
+  function loop(t) {
+    if (!game.running || game.paused || game.over) return;
+    const dt = Math.min(40, t - game.lastTime || 16);
+    game.lastTime = t;
+    update(dt);
+    render();
+    raf(loop);
+  }
+
+  function totalCompletedQuests() {
+    return totalCompletedQuestsFromMeta(meta);
+  }
+
+  function finalizeQuestsFromRun() {
+    const result = finalizeQuestsFromRunCore(meta, game);
+    for (const text of result.rewardTexts) game.rewards.push(text);
+  }
+
+  function evaluateAchievements() {
+    evaluateAchievementsForRun({
+      ACHIEVEMENTS,
+      meta,
+      game,
+      totalCompletedQuests: totalCompletedQuests(),
+      showToast
+    });
+  }
+
+  function endGame(reason='Crash') {
+    if (game.over) return;
+    game.over = true;
+    game.running = false;
+    ui.runStatePill.textContent = 'Game Over';
+    ui.runStatePill.className = 'pill';
+
+    createParticles(game.player.x, game.player.y, 70, '#ffd0a3', [-4,4], [-4,4], [1,6]);
+    render(); // draw crash particles frame
+    // Stop perpetual shake/flicker after the gameplay update loop halts.
+    game.hitStop = 0;
+    game.cameraShake *= 0.35;
+    game.flash *= 0.4;
+
+    // rewards + persistence
+    const { scoreRounded } = applyRunScoreAndCurrency({ meta, game, todayKey });
+
+    finalizeQuestsFromRun();
+    evaluateAchievements();
+
+    // unlock checks + replay / ghost
+    applyUnlocksAndReplay({ meta, game, totalCompletedQuests: totalCompletedQuests() });
+
+    saveMeta();
+    populateLoadoutUI();
+    renderMetaPanels();
+    updateQuestUI();
+
+    // game over UI
+    renderGameOverSheet({
+      ui,
+      game,
+      scoreRounded,
+      summaryText: buildGameOverSummary({ reason, game })
+    });
+    switchOverlay('gameover');
+  }
+
+  function updateHUD() {
+    updateHUDView({
+      ui,
+      game,
+      meta,
+      ghostEnabled,
+      activeBiome,
+      MODES,
+      ELEMENTS,
+      getCooldownPct,
+      formatMs
+    });
+  }
+
+  function renderMetaPanels() {
+    renderMetaPanelsView({
+      ui,
+      meta,
+      SKINS,
+      PETS,
+      ACHIEVEMENTS,
+      onUpgradeSkill: (key) => {
+        if (meta.skillPoints <= 0 || meta.skills[key] >= 5) return;
+        meta.skillPoints -= 1;
+        meta.skills[key] += 1;
+        saveMeta();
+        renderMetaPanels();
+      }
+    });
+  }
+
+  function updateQuestUI() {
+    updateQuestUIView({ ui, meta });
+  }
+
+  function syncQuestProgressLive() {
+    if (!meta.quests) return;
+    let changed = false;
+    for (const q of meta.quests) {
+      const before = q.progress;
+      if (q.type === 'daily_play' && game.modeKey === 'daily' && game.started) q.progress = Math.max(q.progress, 1);
+      if (q.type === 'biome_storm' && activeBiome().id === 'storm') q.progress = Math.max(q.progress, 1);
+      if (q.progress !== before) changed = true;
+    }
+    if (changed) updateQuestUI();
+  }
+
+  function copyShare() {
+    const text = buildShareText({
+      score: game.score,
+      modeName: MODES[game.modeKey].name,
+      elementName: ELEMENTS[game.elementKey].name
+    });
+    shareOrCopyText({
+      text,
+      onCopied: () => showToast('Score copied', 'good'),
+      onFallback: () => showToast('Share text ready')
+    });
+  }
+
+  function takePhoto() {
+    takeCanvasPhoto({
+      canvas,
+      prefix: 'dragon-flight',
+      onSaved: () => showToast('Photo saved', 'good'),
+      onFailed: () => showToast('Photo failed', 'danger')
+    });
+  }
+
+  function showHowTo() {
+    switchOverlay('how');
+  }
+
+  function toggleFullscreen() {
+    toggleFullscreenMode();
+  }
+
+  function updateElementGuide() {
+    updateElementGuideView({ ui, ELEMENTS });
+  }
+
+  function handlePointerDown(e) {
+    handlePointerDownEvent({ event: e, canvas, onFlap: doFlap });
+  }
+
+  function handleKey(e) {
+    handleKeyEvent({
+      event: e,
+      actions: {
+        flap: doFlap,
+        startOrResume: () => { if (!game.started || game.over) startGame(); else if (game.paused) resumeGame(); },
+        ability: doAbility,
+        togglePause,
+        photo: takePhoto,
+        toggleGhost: () => { ghostEnabled = !ghostEnabled; updateHUD(); },
+        cancelRun: cancelRunToMenu,
+        toggleIntel: () => setSidebarCollapsed(!sidebarCollapsed),
+        toggleFullscreen
+      }
+    });
+  }
+
+  controls.startBtn.addEventListener('click', startGame);
+  controls.retryBtn.addEventListener('click', startGame);
+  controls.resumeBtn.addEventListener('click', resumeGame);
+  controls.howBtn.addEventListener('click', showHowTo);
+  controls.shareBtn.addEventListener('click', copyShare);
+  controls.flapBtn.addEventListener('click', doFlap);
+  controls.fireBtn.addEventListener('click', doAbility);
+  controls.pauseBtn.addEventListener('click', togglePause);
+  controls.cancelBtn.addEventListener('click', cancelRunToMenu);
+  controls.cancelBtnPause.addEventListener('click', cancelRunToMenu);
+  controls.photoBtn.addEventListener('click', takePhoto);
+  controls.photoBtnPause.addEventListener('click', takePhoto);
+  controls.closeHowBtn.addEventListener('click', () => switchOverlay('start'));
+  ui.ghostBtn.addEventListener('click', () => { ghostEnabled = !ghostEnabled; updateHUD(); });
+  ui.intelBtn.addEventListener('click', () => setSidebarCollapsed(!sidebarCollapsed));
+  ui.fullscreenBtn.addEventListener('click', toggleFullscreen);
+  controls.sidebarBtn.addEventListener('click', () => setSidebarCollapsed(!sidebarCollapsed));
+  controls.focusBtn.addEventListener('click', () => setSidebarCollapsed(!sidebarCollapsed));
+
+  ui.elementSelect.addEventListener('change', () => {
+    updateElementGuide();
+    game.elementKey = ui.elementSelect.value;
+  });
+  ui.modeSelect.addEventListener('change', () => {
+    ui.dailySeedNote.textContent = ui.modeSelect.value === 'daily' ? `Daily seed shared pattern: ${todayKey}` : 'Daily seed mode uses a shared layout for today.';
+    if (!game.started) {
+      game.modeKey = ui.modeSelect.value;
+      game.high = game.modeKey === 'daily' ? Number(meta.dailyBestByDate[todayKey] || 0) : Number(meta.bestScores[game.modeKey] || 0);
+      updateHUD();
+    }
+  });
+
+  window.addEventListener('keydown', handleKey);
+  window.addEventListener('pointerdown', handlePointerDown);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) pauseGame();
+  });
+
+  // Idle loop for animated title screen and post-crash particles
+  (function idleLoop(t){
+    if ((!game.started || game.paused || game.over) && (!game.running || game.over)) {
+      if (!game.started) {
+        const fake = game.player || freshPlayer();
+        game.player = fake;
+        fake.x = 180; fake.y = H/2 + Math.sin(t/700)*10; fake.angle = Math.sin(t/400)*6; fake.wing = 0.4 + Math.sin(t/110)*0.2;
+        fake.skin = ui.skinSelect.value || meta.selectedSkin || 'ember';
+        render();
+      } else if (game.over) {
+        // Smoothly settle post-game FX because update() is no longer running.
+        const now = performance.now();
+        game.cameraShake *= 0.86;
+        if (game.cameraShake < 0.2) game.cameraShake = 0;
+        game.flash *= 0.9;
+        game.particles = game.particles.filter(pt => {
+          if (now - pt.t > pt.life) return false;
+          pt.x += pt.vx * 0.5;
+          pt.y += pt.vy * 0.5;
+          pt.vx *= 0.985;
+          pt.vy *= 0.985;
+          return true;
+        });
+        game.floaters = game.floaters.filter(f => (now - f.t) < f.life);
+        render();
+      }
+    }
+    raf(idleLoop);
+  })(0);
+
+  function initStartState() {
+    window.scrollTo(0, 0);
+    game.player = freshPlayer();
+    game.started = false;
+    game.running = false;
+    game.paused = false;
+    game.over = false;
+    game.modeKey = ui.modeSelect.value;
+    game.elementKey = ui.elementSelect.value;
+    setSidebarCollapsed(true);
+    game.high = game.modeKey === 'daily' ? Number(meta.dailyBestByDate[todayKey] || 0) : Number(meta.bestScores[game.modeKey] || 0);
+    updateHUD();
+    renderMetaPanels();
+    updateQuestUI();
+    switchOverlay('start');
+    updateElementGuide();
+  }
+
+  initStartState();
+  setTimeout(resizeCanvas, 50);
+})();
+</script>
+</body>
+</html>
