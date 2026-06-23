@@ -21,6 +21,8 @@ func _ready() -> void:
 	_sounds["hit"] = _hit()
 	_sounds["pickup"] = _pickup()
 	_sounds["gameover"] = _gameover()
+	# Restore the persisted mute preference (autoload order: SaveData before Audio).
+	AudioServer.set_bus_mute(0, bool(SaveData.get_setting("muted", false)))
 
 
 func toggle_mute() -> void:
@@ -29,6 +31,7 @@ func toggle_mute() -> void:
 
 func set_muted(m: bool) -> void:
 	AudioServer.set_bus_mute(0, m)
+	SaveData.set_setting("muted", m)
 
 
 func is_muted() -> bool:

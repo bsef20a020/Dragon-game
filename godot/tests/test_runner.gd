@@ -12,6 +12,7 @@ var _failures: Array = []
 func _ready() -> void:
 	_test_modes()
 	_test_save()
+	_test_settings()
 	_test_scoring()
 	_test_collision()
 	_test_gfx()
@@ -78,6 +79,23 @@ func _test_save() -> void:
 	var cur := SaveData.get_high_score(k)
 	SaveData.set_high_score(k, cur + 10.9)
 	eq(SaveData.get_high_score(k), cur + 10, "high score is floored to int")
+
+
+func _test_settings() -> void:
+	# Generic settings store round-trips and defaults correctly.
+	eq(SaveData.get_setting("__nope__", "fallback"), "fallback", "get_setting returns default for missing key")
+	SaveData.set_setting("__selftest_setting__", 42)
+	eq(SaveData.get_setting("__selftest_setting__", 0), 42, "set_setting round-trips")
+
+	# Muting persists through SaveData and is restorable (snapshot/restore real value).
+	var original := bool(SaveData.get_setting("muted", false))
+	Audio.set_muted(true)
+	ok(Audio.is_muted(), "Audio reports muted after set_muted(true)")
+	eq(SaveData.get_setting("muted", false), true, "mute preference is persisted")
+	Audio.set_muted(false)
+	ok(not Audio.is_muted(), "Audio reports unmuted after set_muted(false)")
+	eq(SaveData.get_setting("muted", true), false, "unmute preference is persisted")
+	Audio.set_muted(original)  # leave the user's real preference untouched
 
 
 func _test_scoring() -> void:

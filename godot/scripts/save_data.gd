@@ -6,32 +6,35 @@ extends Node
 const SAVE_PATH := "user://dragon_flight_save.json"
 
 var _high_scores := {}
+var _settings := {}
 
 func _ready() -> void:
 	_load()
 
 func _load() -> void:
+	_high_scores = {}
+	_settings = {}
 	if not FileAccess.file_exists(SAVE_PATH):
-		_high_scores = {}
 		return
 	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if f == null:
-		_high_scores = {}
 		return
 	var raw := f.get_as_text()
 	f.close()
 	var parsed: Variant = JSON.parse_string(raw)
-	if typeof(parsed) == TYPE_DICTIONARY and parsed.has("high_scores"):
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return
+	if typeof(parsed.get("high_scores")) == TYPE_DICTIONARY:
 		_high_scores = parsed["high_scores"]
-	else:
-		_high_scores = {}
+	if typeof(parsed.get("settings")) == TYPE_DICTIONARY:
+		_settings = parsed["settings"]
 
 func _save() -> void:
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
 		# Storage can fail (read-only fs); the game stays playable, just unsaved.
 		return
-	f.store_string(JSON.stringify({"high_scores": _high_scores}))
+	f.store_string(JSON.stringify({"high_scores": _high_scores, "settings": _settings}))
 	f.close()
 
 func get_high_score(mode_key: String) -> int:
@@ -42,3 +45,10 @@ func set_high_score(mode_key: String, score: float) -> int:
 	_high_scores[mode_key] = next
 	_save()
 	return next
+
+func get_setting(key: String, default_value: Variant) -> Variant:
+	return _settings.get(key, default_value)
+
+func set_setting(key: String, value: Variant) -> void:
+	_settings[key] = value
+	_save()
