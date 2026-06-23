@@ -15,6 +15,7 @@ func _ready() -> void:
 	_test_settings()
 	_test_scoring()
 	_test_collision()
+	_test_daily_seed()
 	_test_gfx()
 	_test_hud_hit_areas()
 
@@ -143,6 +144,65 @@ func _test_collision() -> void:
 			clear_hit = true
 	ok(not clear_hit, "dragon passes cleanly through an aligned gap")
 	g.free()
+
+
+func _route(seed_val: int) -> Array:
+	# Generate a deterministic slice of a run's route for the given rng seed.
+	var g = load("res://scripts/game.gd").new()
+	g.mode = GameData.get_mode("daily")
+	g.health = 3
+	g.max_health = 3
+	g.rng = RandomNumberGenerator.new()
+	g.rng.seed = seed_val
+	for i in 12:
+		g._spawn_pillar()
+	var sig: Array = []
+	for p in g.pillars:
+		sig.append([p.gap_y, p.body_w, p.danger])
+	for pk in g.pickups:
+		sig.append([pk.kind, pk.pos.x, pk.pos.y])
+	g.free()
+	return sig
+
+
+func _test_daily_seed() -> void:
+	# The core contract: same seed -> byte-identical route; different seed -> different.
+	var a := _route(20260623)
+	var b := _route(20260623)
+	eq(a, b, "same seed produces an identical route")
+	ok(a.size() > 0, "route actually generated obstacles")
+	var c := _route(20260624)
+	ok(a != c, "a different seed produces a different route")
+
+	# daily_seed() yields a plausible YYYYMMDD integer for the local day.
+	var g = load("res://scripts/game.gd").new()
+	var ds: int = g.daily_seed()
+	ok(ds >= 19700101 and ds <= 99991231, "daily_seed is an 8-digit YYYYMMDD (got %d)" % ds)
+	g.free()
+
+	# End-to-end: the real _seed_run() path makes two Daily runs match today,
+	# while a non-daily mode (which randomises) is overwhelmingly unlikely to.
+	eq(_daily_route(), _daily_route(), "two Daily runs share the same route today")
+	ok(_seeded_route("classic") != _daily_route(), "a randomised mode differs from the Daily route")
+
+
+func _daily_route() -> Array:
+	return _seeded_route("daily")
+
+
+func _seeded_route(mode_key: String) -> Array:
+	var g = load("res://scripts/game.gd").new()
+	g.mode = GameData.get_mode(mode_key)
+	g.health = 3
+	g.max_health = 3
+	g._seed_run()
+	for i in 12:
+		g._spawn_pillar()
+	var sig: Array = []
+	for p in g.pillars:
+		sig.append([p.gap_y, p.body_w, p.danger])
+	g.free()
+	return sig
 
 
 func _test_gfx() -> void:

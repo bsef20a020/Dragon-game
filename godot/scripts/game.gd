@@ -51,6 +51,12 @@ var flash_dur := 0.0
 var flash_color := Color.WHITE
 var now_ms := 0.0
 
+# Deterministic RNG for the *route* (obstacles + pickups). In Daily Seed mode it
+# is seeded from the local calendar day, so everyone gets the same run that day;
+# other modes randomise it. Cosmetic randomness (embers, particles) deliberately
+# stays on the global RNG so visuals never perturb the seeded route.
+var rng := RandomNumberGenerator.new()
+
 @onready var hud: Control = $HudLayer/Hud
 
 var _font: Font
@@ -59,6 +65,7 @@ var _font: Font
 func _ready() -> void:
 	_font = ThemeDB.fallback_font
 	mode = GameData.get_mode(GameData.selected_mode_key)
+	_seed_run()
 	high_score = SaveData.get_high_score(mode.key)
 	health = mode.health
 	max_health = mode.health
@@ -67,6 +74,19 @@ func _ready() -> void:
 	_seed_stars()
 	_seed_clouds()
 	emit_hud()
+
+
+func _seed_run() -> void:
+	if mode.key == "daily":
+		rng.seed = daily_seed()
+	else:
+		rng.randomize()
+
+
+## Stable seed for the current local day, e.g. 2026-06-23 -> 20260623.
+func daily_seed() -> int:
+	var d := Time.get_date_dict_from_system(false)  # false = local time
+	return int(d.year) * 10000 + int(d.month) * 100 + int(d.day)
 
 
 func _seed_stars() -> void:
@@ -247,10 +267,10 @@ func _update_obstacles(seconds: float, delta_ms: float) -> void:
 
 
 func _spawn_pillar() -> void:
-	var danger := randi_range(0, 100) > 72
+	var danger := rng.randi_range(0, 100) > 72
 	var gap: float = mode.gap + (-14.0 if danger else 0.0)
 	var margin := 64.0
-	var gap_y := float(randi_range(int(margin), int(H - margin - gap)))
+	var gap_y := float(rng.randi_range(int(margin), int(H - margin - gap)))
 	var body_w := 84.0 if danger else 74.0
 	var x := float(W + 74)
 	pillars.append({
@@ -263,11 +283,11 @@ func _spawn_pillar() -> void:
 		"scored": false,
 	})
 
-	if randi_range(0, 100) > 42:
+	if rng.randi_range(0, 100) > 42:
 		var kind := _pick_pickup_kind()
-		var pickup_y := clampf(gap_y + gap / 2.0 + randf_range(-44.0, 44.0), 48.0, H - 48.0)
+		var pickup_y := clampf(gap_y + gap / 2.0 + rng.randf_range(-44.0, 44.0), 48.0, H - 48.0)
 		pickups.append({
-			"pos": Vector2(x + randf_range(72.0, 126.0), pickup_y),
+			"pos": Vector2(x + rng.randf_range(72.0, 126.0), pickup_y),
 			"kind": kind,
 			"base_y": pickup_y,
 			"phase": 0.0,
@@ -276,7 +296,7 @@ func _spawn_pillar() -> void:
 
 
 func _pick_pickup_kind() -> String:
-	var roll := randi_range(1, 100)
+	var roll := rng.randi_range(1, 100)
 	if roll > 91 and health < max_health:
 		return "heart"
 	if roll > 82:
